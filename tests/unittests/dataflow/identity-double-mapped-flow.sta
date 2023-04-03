@@ -1,0 +1,13 @@
+header: 
+
+entry(identity):
+
+prompt(identity):
+- target(data) mapped
+> data:
+__next(second):
+
+prompt(second):
+- target(data) prompt(identity) mapped
+> data:
+__exit(data):

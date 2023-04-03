@@ -1,0 +1,13 @@
+entry(mmlu_cot_repeat): You are taking the MMLU exam.
+
+formats:
+- choice(repeat=.choices): one of four choices to answer the question
+
+prompt(mmlu_cot_repeat): You are given one question and four choices for the answer. Only one of these choices is the correct answer. Which choice is correct?
+- target(question)
+- target(choices)
+> question: a question from the MMLU exam
+> choices[4]: four choices that could answer this question. Only one is the correct answer.
+> work[10](thought): show and explain your work as you solve the problem, you can use up to 10 lines.
+> answer(choice): the correct answer from the list of choices
+__exit(answer):

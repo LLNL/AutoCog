@@ -1,0 +1,130 @@
+entry(search_init): You are conducting a search based on a user's question. You are using an iterative method where you carry notes between each iteration. 
+
+formats:
+- identifier: an identifer such as a url, a serial number, ...
+- sentence: a single, grammatically correct, sentence in natural language
+
+prompt(search_init): **GHOST**
+- target(notes)
+> notes[{num_notes}]:
+> > observation[{num_obs}](sentence):
+> > links[{num_links}]:
+> > > url(identifier):
+> > > reason(sentence):
+__next(search_start):
+
+prompt(search_start): You inspect your notes and decide whether to do more search or write an answer
+- target(question)
+- target(notes) prompt(search_init,search_observe) append
+> question: A question from the user
+> notes[{num_notes}]: notes for each of the previous iterations
+> > observation[{num_obs}](sentence): your observations of the results
+> > links[{num_links}]: links you saved from that iteration
+> > > url(identifier): the url of the result you decided to save
+> > > reason(sentence): the reason for saving that result
+> complete[{num_comp}](thought): do you have sufficient information to answer the user's question
+__next(search_query[{max_search}],write): should you "search" more or "write" an answer
+
+prompt(search_query): Given your notes you formulates new queries for the engine
+- target(question)
+- target(notes) prompt(search_start)
+> question: A question from the user
+> notes[{num_notes}]: notes for each of the previous iterations
+> > observation[{num_obs}](sentence): your observations of the results
+> > links[{num_links}]: links you saved from that iteration
+> > > url(identifier): the url of the result you decided to save
+> > > reason(sentence): the reason for saving that result
+> needed[{num_needs}](thought): consider the information you are missing
+> goal(sentence): state the information you are looking for
+> formulate[{num_form}](thought): consider keywords to build queries
+> query[{num_query}](text): a short query for {engine}
+__next(search_select):
+
+prompt(search_select): You are shown one search result, is it relevant to you search?
+- target(need) prompt(search_query) source(goal)
+- target(result) call(search) kwargs(query, !query) kwargs(num, {num_item}) kwargs(engine, {engine}) kwargs(return_request, True) prompt(search_query) mapped(.,.items)
+> need: the information you were looking for in that iteration
+> result: showing one search result
+> > title: the title of the search result
+> > uid(identifier): a unique identifier for this result
+> > content[{num_content}](text): the content of this result
+> evaluate[{num_eval}](thought): is this result relevant to your stated need
+> relevant(bool): do you select this result?
+> reason(sentence): explain your decision
+__next(search_observe):
+
+prompt(search_observe): You have filtered the search results. Now you will synthetize them and select the most relevant ones.
+- target(question)
+- target(items) prompt(search_select) source(title,uid,content,reason,relevant) select(.relevant)
+> question: A question from the user
+> need: the information you were looking for in that iteration
+> items[{max_items}]: your selection of items
+> > title: the title of the search result
+> > uid(identifier): a unique identifier for this result
+> > content[{num_content}](text): the content of this result
+> > reason(sentence): why you think that this item is relevant
+> synthesize[{num_synth}](thought): what is useful in these results
+> notes: summarize the results and select the most relevant links
+> > observation[{num_obs}](sentence): summarize your observation
+> > links[{num_links}]: identify the links to be saved from the items above 
+> > > sort[{num_sort}](thought): identify a few relevant items that you have not saved yet
+> > > url(identifier): select one of the items you identified as relevant
+> > > reason(sentence): explain why you choose this item
+__next(search_start):
+
+prompt(write): You have collected relevant results. Now, you write a well documented answer to the user question.
+- target(question)
+- target(notes) prompt(search_start)
+> question: A question from the user
+> notes[{num_notes}]: notes for each of the previous iterations
+> > observation[{num_obs}](sentence): your observations of the results
+> > links[{num_links}]: links you saved from that iteration
+> > > url(identifier): the url of the result you decided to save
+> > > reason(sentence): the reason for saving that result
+> response[{num_resp}]: formulate your response in a few paragraphs. Use the note's and link's indices to cite: `[N.L]` where `N` and `L` are the indices
+> > draft[{num_prep}](thought): consider the content of this paragraph
+> > content[{num_sent}](sentence): write the paragraph, sentence per sentence
+__next(submit):
+
+prompt(submit): **GHOST** 
+- target(notes) prompt(search_start)
+- target(response) prompt(write)
+> notes[{num_notes}]:
+> > observation[{num_obs}](sentence):
+> > links[{num_links}]:
+> > > url(identifier):
+> > > reason(sentence):
+> response[{num_resp}]:
+> > content[{num_sent}](sentence):
+__exit(notes,response):
+
+# parameters for notes
+?num_notes=20
+?num_query=3
+?num_obs=10
+?num_links=5
+
+# parameter for search results
+?engine="google"
+?num_item=20
+?num_content=10
+
+# parameter for loop-init prompt
+?num_comp=5
+?max_search=5
+
+# parameters for search prompt
+?num_needs=5
+?num_form=5
+
+?num_eval=5
+?num_sort=5
+
+# parameter for observe prompt
+?max_items=100
+?num_synth=10
+
+# 
+?num_resp=10
+?num_prep=10
+?num_sent=10

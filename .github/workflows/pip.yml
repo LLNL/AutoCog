@@ -1,0 +1,28 @@
+name: pip
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: style-${{github.ref}}-${{github.event.pull_request.number || github.run_number}}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4.6.0
+      with:
+        python-version: '3.9'
+    - name: Install Python Packages
+      run: pip install --upgrade pip
+    - name: Install
+      run: pip install .
+    - name: Check
+      run: cd / ; python -c "import autocog ; print(autocog.__file__)"

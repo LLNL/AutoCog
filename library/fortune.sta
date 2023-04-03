@@ -1,0 +1,34 @@
+# Use Markdown syntax highlight for more readability
+# The parser ignore lines that begin with `#` and empty lines
+# There is no prescribed order for the top level statements (blocks in this file)
+
+# This single-phase STA is a fortune-teller:
+#    Given a question it "guesses" an answer.
+#    The _qualifier_ is provided at compile time
+entry(fortune): You have been asked a question and will write a {qualifier} answer.
+
+# By default all prompt are _text_ but you can define your own type here
+# We will provide other "native" formats beside text: bool, int, range, float, ...
+# In all these cases, we will use LM.choose to ensure adherence to the format (if possible).
+# We will add syntax to declare enumerations (already used for control-flow)
+formats:
+- sentence: a single, grammatically correct, sentence in natural language 
+
+# The single prompt of this STA get the question from the inputs, run a simple questionnaire, then exit with the answer
+prompt(fortune): You will analyse the user's question to write this {qualifier} answer.
+- target(question)
+> question(text): question from the user
+> meaning[{S}](thought): think about what the user might want hear 
+> intent(sentence): State how you will make your answer {qualifier} to the user
+> idea[{T}](thought): Consider {qualifier} ideas to answer the question 
+> answer[{N}](sentence): Your {qualifier} answer can be a few sentences (one per line)
+__exit(answer): returning your answer to the user
+
+# Default values for f-exp can be declared anywhere
+#    Please: try not to break syntactic units.
+#    I'd like these "macro" to represent subtree of the AST.
+#    That would prevent the nightmare of cpp-macros.
+?qualifier=pleasant
+?S=3
+?T=3
+?N=2
