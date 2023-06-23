@@ -4,25 +4,13 @@
 [![PIP](https://github.com/LLNL/AutoCog/workflows/pip/badge.svg)](https://github.com/LLNL/AutoCog/actions)
 [![STA Dataflow](https://github.com/LLNL/AutoCog/workflows/dataflow/badge.svg)](https://github.com/LLNL/AutoCog/actions)
 
-Blantly, AutoCog aims at bridging the gap between Symbolic and Connectionnist approaches of Artificial Intelligence.
-To this end, it provides the necessary components to build **complete** programming languages that are **executed** by language models.
-With these programming languages, it becomes possible to implement symbolic AI algorithms on top of LM.
+AutoCog primary goal is to provide the essential components for constructing comprehensive programming languages that can be effectively executed by language models (LMs). Through the utilization of these programming languages, it will becomes feasible to implement symbolic AI algorithms on top of LM.
 
-This is a research software: it is subject to abrupt, not-backward compatible, changes!
-However, we try to keep the [Demo](./demo.ipynb) up to date. A [preprint](https://arxiv.org/abs/2306.10196) of our submission to CGO-24 is available.
-The syntax presented in the paper is already a bit out-of-date...
-A full [list of publications](./PAPERS.md) will be maintained.
+At present, AutoCog offers Structured Thoughts Automaton (STA) as its sole Programming Model. STA's language is inherently low-level and may present challenges in terms of maintenance. For those interested in delving deeper, we have also made available a [preprint](https://arxiv.org/abs/2306.10196) of our submission to CGO-24. It is worth mentioning that the syntax presented in the publication is slightly outdated. The design of a proper language is one of our priority. To stay informed about our latest contributions, we will diligently curate a comprehensive [list of publications](./docs/PAPERS.md).
 
-AutoCog is a framework to design [programming models (PM)](https://en.wikipedia.org/wiki/Programming_model)
-for [language models (LM)](https://en.wikipedia.org/wiki/Language_model).
-It permits developers to devise Cognitive Architecture (`CogArch`) aggregating callable objects (`Cog`).
-`Cog` takes a _structured document_ as input and returns another _structured document_.
-They can be simple wrapper arround various API or Python code.
-They can also be `Automaton` which drive Language Models (`LM`).
+We are developing Finite Thought Automata (FTA) to act as the underlying Machine Model for AutoCog. In a nutshell, FTA enables to express a prompt as a finite automata over the alphabet of the LM. FTA is then used to enforce low-level syntax in the prompt. It ensures that the LM always provides completions that are parseable by the execution model. Initial work on FTA: [source](./autocog/automatons/fta) and [notebook](./share/fta.ipynb) (where we try to force untrained model to ouput numbers as "XX,XXX,XXX.XX").
 
-Currently, AutoCog provides Structured Thoughts Automaton as its sole Execution/Programming Model.
-STA's language is basically "cognitive assembly", it is extremelly low-level and will be a pain to maintain.
-However, we do think that it is a step forward compared to manually crafting sequences of prompts.
+As a research software, it is important to note that AutoCog undergoes continuous development, which may result in sudden and non-backward compatible changes. Nonetheless, we strive to maintain an up-to-date [Demo](./demo.ipynb), offering a glimpse into the capabilities of the framework. The [share](./share) directory also contains several notepads, particularly the notebooks for [searcher](./share/searcher.ipynb), [reader](./share/reader.ipynb), and [writer](./share/writer.ipynb).
 
 ## Getting started
 
@@ -38,9 +26,9 @@ pip install -U ./AutoCog
 
 ### Inside a Notebook
 
-Most of the development is done using `jupiter-lab`.
+Most of the development is done inside Python notebook (jupiterlab).
 To get started take a look at the [Demo](./demo.ipynb).
-Several notebooks demonstrate various part of AutoCog in the [share](./share) folder.
+Eventually, several notebooks demonstrating various part of AutoCog will be provided in the [share](./share) folder.
 
 ### Command line
 

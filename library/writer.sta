@@ -1,4 +1,4 @@
-entry(init): You are writing a story.
+entry(init): You are writing a {content}.
 
 formats:
 - sentence: a single, grammatically correct, sentence in natural language
@@ -6,20 +6,20 @@ formats:
 
 prompt(init): **GHOST**
 - target(idea)
-> idea(paragraph): The initial idea for the story
+> idea(paragraph): The initial idea for the {content}
 __next(start):
 
 prompt(start): You were given a notepad to brainstorm iteratively. Inspect the content of the notepad to decide if you need to brainstorm more.
 - target(notepad) prompt(init,aggregate) source(idea) append
-> notepad[100](paragraph): the notes that you have brainstormed
+> notepad[{N}](paragraph): the notes that you have brainstormed
 > ready(thought): evaluate the ideas in the notepad, is it enough?
-__next(ideas[5],write): should you brainstorm more `ideas` or `write` the story
+__next(ideas[{L}],write): should you brainstorm more `ideas` or `write` the {content}
 
 prompt(ideas): You come up with topics to enriched your notes.
 - target(notepad) prompt(start)
-> notepad[100](paragraph): the notes that you have brainstormed
-> topics[5]: Generate new topics that would enriched your notes
-> > reflection[10](thought): Evaluate the content of your notes and reflect on missing idea that you could address
+> notepad[{N}](paragraph): the notes that you have brainstormed
+> topics[{T}]: Generate new topics that would enriched your notes
+> > reflection[{R}](thought): Evaluate the content of your notes and reflect on missing idea that you could address
 > > topic(sentence): Identify one topic using a single sentence. Be concise but not vague.
 __next(ideation):
 
@@ -32,7 +32,7 @@ __next(filtering):
 prompt(filtering): You have elaborated on a topic to produce an idea. You are evaluating that idea to see if it worth adding it to your notes.
 - target(notepad) prompt(start)
 - target(idea) prompt(ideation) mapped
-> notepad[100](paragraph): the notes that you have brainstormed
+> notepad[{N}](paragraph): the notes that you have brainstormed
 > idea(paragraph): An idea that you produced during brainstorming
 > evaluate(thought): Consider whether that idea would enrich your notes
 > keep(bool): should you keep that idea in your notes
@@ -40,16 +40,22 @@ __next(aggregate):
 
 prompt(aggregate): **GHOST**
 - target(ideas) prompt(filtering) select(.keep) source(idea,keep)
-> ideas[100]: 
+> ideas[{N}]: 
 > > idea(paragraph):
 __next(start):
 
-prompt(write): You have brainstormed ideas to write a story. You will now write that story.
+prompt(write): You have brainstormed ideas to write a {content}. You will now write that {content}.
 - target(idea) prompt(init)
 - target(notepad) prompt(start)
-> notepad[100](paragraph): The notes from your brainstorming.
-> idea(sentence): The initial idea for the story
-> setup[20](thought): think about the setup of the story
-> story[100](paragraph): write the story
-> epilogue(paragraph): the epilogue of your story
-__exit(notepad,setup,story,epilogue):
+> notepad[{N}](paragraph): The notes from your brainstorming.
+> idea(sentence): The initial idea for the {content}
+> setup[{S}](thought): think about the setup of the {content}
+> content[{N}](paragraph): write the {content}
+__exit(notepad,setup,content):
+
+?content=report
+?N=100
+?L=5
+?S=20
+?T=5
+?R=10

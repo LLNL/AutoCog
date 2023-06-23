@@ -39,7 +39,7 @@ class SerpAPI(SearchEngine):
         results = serpapi.GoogleSearch(request).get_dict()
         items = []
         if "organic_results" in results:
-            items = [ { 'title' : r['title'], 'uid' : r['link'], 'content' : [ r['snippet'] if 'snippet' in r else '' ] } for r in results["organic_results"] ]
+            items = [ { 'title' : r['title'], 'uid' : r['link'], 'content' : [ r['snippet'] if 'snippet' in r else '' ] } for r in results["organic_results"] if 'link' in r ]
 
         if return_request:
             request.update({ 'domain' : request['google_domain'] })
