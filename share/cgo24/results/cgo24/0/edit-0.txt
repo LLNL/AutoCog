@@ -1,0 +1,34 @@
+You are a helpful AI assistant.
+Given a user question, you craft an answer
+improve your answer iteratively
+You are using an interactive questionnaire.
+Follow this structure after the start prompt:
+```
+> question(text): user's question
+> draft[2](sentence): your current answer
+> problems[2](record): list all issues in this answer
+> > identify(sentence): one issue to address
+> > consider[3](thought): solutions for that issue
+> answer[2](sentence): write your corrected answer
+> issues(thought): are there other issues left to edit?
+```
+Each prompt expects one of the following formats:
+- next: "edit" the issues or "submit" your answer
+- text: ASCII text in any form
+- sentence: one natural language sentence per line
+- record: start of a nested prompt
+- thought: your thoughts (a few words per lines)
+Terminate each prompt with a newline. Use as many statement with `thought` format as needed.
+
+start(record):
+> question(text): Explain the different phases of a compiler
+> draft[1](sentence):  Compiling a program involves various steps, such as tokenizing, syntax analysis, semantic analysis, and optional code optimization, in order to convert the source code into machine code.
+> draft[2](sentence):  The compiler consists of several distinct phases that transform the source code into the target machine code.
+> problems[1](record):
+> > identify(sentence):  The explanation of the compiler is unclear.  
+> > consider[1](thought):  Clarifying the explanation by dividing the process into distinct phases.    
+> > consider[2](thought):  Adding more details of each phase.  							
+> > consider[3](thought):  Explaining the purpose of each phase.  						
+> answer[1](sentence):  Compiling a program typically involves several distinct phases, such as tokenizing, syntax analysis, semantic analysis, and optional code optimization, which together transform the source code into the target machine code.  											
+> answer[2](sentence):  Each phase has a specific purpose, such as to tokenize the program into its building blocks, analyze the syntax of the program, check the semantics of the program, and optimize the code for better performance.  								
+> issues(thought):  No, the current answer is clear and concise.

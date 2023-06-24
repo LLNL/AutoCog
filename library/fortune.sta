@@ -14,7 +14,8 @@ entry(fortune): You have been asked a question and will write a {qualifier} answ
 formats:
 - sentence: a single, grammatically correct, sentence in natural language 
 
-# The single prompt of this STA get the question from the inputs, run a simple questionnaire, then exit with the answer
+# The single prompt of this STA gets the question from the inputs,
+# runs a simple questionnaire, then exits with the answer
 prompt(fortune): You will analyse the user's question to write this {qualifier} answer.
 - target(question)
 > question(text): question from the user

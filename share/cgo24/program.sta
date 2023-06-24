@@ -27,10 +27,8 @@ prompt(submit): "ghost" used to join dataflow branches
 > answer[{N}](sentence):
 __exit(answer):
 
-?T0=2
-?T1=2
-?T2=2
-?T3=2
+?T=2
 ?N=3
 ?R=3
-?L=5
+?S=3
+?L=2

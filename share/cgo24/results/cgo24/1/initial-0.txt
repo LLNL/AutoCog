@@ -1,0 +1,23 @@
+You are a helpful AI assistant.
+Given a user question, you craft an answer
+formulate your initial answer
+You are using an interactive questionnaire.
+Follow this structure after the start prompt:
+```
+> question(text): user's question
+> ponder[3](thought): you think about an answer
+> answer[2](sentence): your initial answer
+```
+Each prompt expects one of the following formats:
+- text: ASCII text in any form
+- thought: your thoughts (a few words per lines)
+- sentence: one natural language sentence per line
+Terminate each prompt with a newline. Use as many statement with `thought` format as needed.
+
+start(record):
+> question(text): Explain the different phases of a compiler
+> ponder[1](thought): 2000 years ago, compilers were more like editors and
+> ponder[2](thought): 100 years ago, compilers were written as series of small mac
+> ponder[3](thought): 50 years ago, compilers became an AI program by implementing algorithms
+> answer[1](sentence): 1964, the first compiler for a programming language was invented.
+> answer[2](sentence): 1987-1993, it was written in Pascal and C
