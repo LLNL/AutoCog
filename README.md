@@ -6,11 +6,17 @@
 
 AutoCog primary goal is to provide the essential components for constructing comprehensive programming languages that can be effectively executed by language models (LMs). Through the utilization of these programming languages, it will becomes feasible to implement symbolic AI algorithms on top of LM.
 
-At present, AutoCog offers Structured Thoughts Automaton (STA) as its sole Programming Model. STA's language is inherently low-level and may present challenges in terms of maintenance. For those interested in delving deeper, we have also made available a [preprint](https://arxiv.org/abs/2306.10196) of our submission to CGO-24. It is worth mentioning that the syntax presented in the publication is slightly outdated. The design of a proper language is one of our priority. To stay informed about our latest contributions, we will diligently curate a comprehensive [list of publications](./docs/PAPERS.md).
+[![Experiments for version 1 of the CGO-24 paper](./share/cgo24/v1/composite.png)](./share/cgo24/v1)
 
-We are developing Finite Thought Automata (FTA) to act as the underlying Machine Model for AutoCog. In a nutshell, FTA enables to express a prompt as a finite automata over the alphabet of the LM. FTA is then used to enforce low-level syntax in the prompt. It ensures that the LM always provides completions that are parseable by the execution model. Initial work on FTA: [source](./autocog/automatons/fta) and [notebook](./share/fta.ipynb) (where we try to force untrained model to ouput numbers as "XX,XXX,XXX.XX").
+At present, AutoCog offers Structured Thoughts Automaton (STA) as its sole Programming Model. STA's language is inherently low-level and may present challenges in terms of maintenance. For those interested in delving deeper, we have also made available a [preprint](https://arxiv.org/abs/2306.10196) of our submission to CGO-24. See [share/cgo24/v1](./share/cgo24/v1) for the artifacts of that paper.
 
-As a research software, it is important to note that AutoCog undergoes continuous development, which may result in sudden and non-backward compatible changes. Nonetheless, we strive to maintain an up-to-date [Demo](./demo.ipynb), offering a glimpse into the capabilities of the framework. The [share](./share) directory also contains several notepads, particularly the notebooks for [searcher](./share/searcher.ipynb), [reader](./share/reader.ipynb), and [writer](./share/writer.ipynb).
+As a research software, it is important to note that AutoCog undergoes continuous development, which may result in sudden and non-backward compatible changes. Nonetheless, we strive to maintain an up-to-date [Demo](./demo.ipynb), offering a glimpse into the capabilities of the framework. 
+
+## Current Work
+
+The [share](./share) directory also contains several notepads, particularly the notebooks for [searcher](./share/searcher.ipynb), [reader](./share/reader.ipynb), and [writer](./share/writer.ipynb). The development of these _generic_ STA programs is currently driving the implementation of many features. Particularly, we are building a first set of [unit-tests focused on dataflow](./tests/unittests).
+
+We are developing Finite Thought Automata (FTA) to act as the underlying Machine Model for AutoCog. In a nutshell, FTA enables to express a prompt as a finite automata over the alphabet of the LM. FTA is then used to enforce low-level syntax in the prompt. It ensures that the LM always provides completions that are parseable by the execution model. Initial work on FTA: [source](./autocog/automatons/fta) and [notebook](./share/fta.ipynb) (where we try to force untrained model to ouput numbers as "XX,XXX,XXX.XX" where X is a digit).
 
 ## Getting started
 
@@ -82,18 +88,7 @@ Looking for way to tests the LLM on GitHub (don't want to expose an API key or m
 ## Contributing
 
 Contributions are welcome and encouraged!
-
-We need to setup proper categories (pull-request templates) but I see:
- - libraries of reusable and composable cognitive programs:
-   - GOFAI algorithms
-   - cognitive drivers: uses one or more tools
- - tools
-   - grep, sed, awk, jq/yq, tree-sitter, ...
-   - various APIs: HuggingFace, OpenAI, search, vector-store
- - execution/programming models
-   - high-level languages that compile to STA
-   - other execution models:
- - features...
+So far there is only one rule: **linear git history** (no merge commits).
 
 ## License
 
