@@ -10,19 +10,19 @@ app = Quart('autocog', template_folder=os.path.realpath('share/webapp')) # TODO 
 arch = None
 
 @app.route("/")
-async def autocog_server_index():
-    return await render_template("index.html")
+async def index():
+    return await render_template("index.html", arch=arch)
 
 @app.route("/api/v0/register")
-async def autocog_server_register():
+async def api_v0_register():
     raise NotImplementedError() # TODO register a tool
 
-@app.route("/api/v0/register")
-async def autocog_server_load():
+@app.route("/api/v0/load")
+async def api_v0_load():
     raise NotImplementedError() # TODO load a program
 
-@app.route("/api/v0/register")
-async def autocog_server_execute():
+@app.route("/api/v0/execute")
+async def api_v0_execute():
     raise NotImplementedError() # TODO execute a `cog`
 
 def serve(arch_, host='0.0.0.0', port=1001, debug=False):

@@ -1,11 +1,10 @@
 
-import os, sys, json
+import sys
+import json
 import asyncio
 
 from .utility.server import serve
 from .utility.args2arch import parseargs
-
-import autocog.lm
 
 async def run(arch, commands):
     return await asyncio.gather(*[
