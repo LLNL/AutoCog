@@ -104,7 +104,15 @@ class StructuredThoughtAutomaton(Automaton):
                 if not vs.fmt in sta.formats:
                     raise Exception(f"Referencing unknown format: {vs.fmt}")
                 if vtag != prompt.stm.tag:
-                    prompt.formats.update({ vs.fmt : sta.formats[vs.fmt] })
+                    fmt = vs.fmt
+                    while fmt is not None:
+                        F = sta.formats[fmt]
+                        if not fmt in prompt.formats:
+                            prompt.formats.update({ fmt : F })
+                        if issubclass(F.__class__, Text):
+                            fmt = F.base
+                        else:
+                            fmt = None
 
         for o in outputs:
             if not isinstance(o, dict):

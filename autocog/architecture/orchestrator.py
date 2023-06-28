@@ -11,7 +11,10 @@ from ..automatons.machine import StateMachine, Instance
 from .utility import PromptPipe
 
 class Frame(BaseModel):
-    pid: Optional[int] = None
+    pid:     Optional[int] = None
+    ctag:    Optional[str] = None
+    stacks:  Any           = None
+    subs:    List[int]     = []
     
 class Orchestrator(BaseModel):
     frames: List[Frame] = []
@@ -30,17 +33,21 @@ class Orchestrator(BaseModel):
         cog = self.cogs[ctag]
 
         fid = len(self.frames)
-        self.frames.append(Frame(pid=pid))
+        self.frames.append(Frame(pid=pid, ctag=ctag))
+        self.frames[pid].subs.append(fid)
         if isinstance(cog, Automaton):
             if not self.pipe is None:
                 self.pipe.next()
-            return cog(fid=fid, **inputs)
+            return ( fid, cog(fid=fid, **inputs) )
         else:
-            return cog(**inputs)
-        
-    @abstractmethod
-    def execute(self, jobs:List[Tuple[str,Any]], pid:int):
+            return ( fid, cog(**inputs) )
+
+    def coroframe(self, jobs:List[Tuple[str,Any]], pid:int):
         return [ self.job(ctag, inputs, pid) for (ctag, inputs) in jobs ]
+
+    def callback(self, fid, result):
+        self.frames[fid].stacks = result[1]
+        return result[0]
 
     @abstractmethod
     def prompt(self, fid:int, machine:StateMachine, instances:List[Instance], header:str, formats:Dict):
@@ -50,19 +57,18 @@ class Orchestrator(BaseModel):
             limit=self.limit,
         ) for (idx, instance) in enumerate(instances) ]
 
-class Sequential(Orchestrator):
+class Serial(Orchestrator):
     async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0):
-        return [ await coro for coro in super().execute(jobs, pid) ]
+        return [ Orchestrator.callback(self, fid, await coro) for (fid, coro) in super().coroframe(jobs, pid) ]
 
     async def prompt(self, fid:int, machine:StateMachine, instances:Instance, header:str, formats:Dict):
         return [ await coro for coro in super().prompt(fid, machine, instances, header, formats) ]
 
-class Chuncked(Orchestrator):
-    pass # TODO
-
-class Asynchronous(Orchestrator):
+class Async(Orchestrator):
     async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0):
-        return await asyncio.gather(*super().execute(jobs, pid))
+        (fids, coros) = zip(*[ (fid, coro) for (fid, coro) in super().coroframe(jobs, pid) ])
+        results = await asyncio.gather(*coros)
+        return [ Orchestrator.callback(self, fid, result) for (fid, result) in zip(fids, results) ]
 
     async def prompt(self, fid:int, machine:StateMachine, instances:Instance, header:str, formats:Dict):
         return await asyncio.gather(*super().prompt(fid, machine, instances, header, formats))

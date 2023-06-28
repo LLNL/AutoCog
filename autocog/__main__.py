@@ -1,27 +1,27 @@
 
+import os
 import sys
 import json
 import asyncio
 
-from .utility.server import serve
 from .utility.args2arch import parseargs
 
-async def run(arch, commands):
-    return await asyncio.gather(*[
-        arch(tag, **inputs)
-        for (tag,inputs) in commands
-    ])
+def main(arch, serve, flask_host, flask_port, flask_debug, commands, opath):
+    if os.path.exists(f'{opath}/frames.json'):
+        pass # TODO load existing frames
 
-def main(arch, commands, opath, flask_host, flask_port, flask_debug):
-    if commands is None:
+    if commands is not None:
+        res = asyncio.run(arch.run(commands))
+        with open(f'{opath}/results.json','w') as F:
+            json.dump(res, F, indent=4)
+
+    if serve:
+        from .utility.server import serve
         serve(arch, host=flask_host, port=flask_port, debug=flask_debug)
-    else:
-        res = asyncio.run(run(arch, commands))
-        if opath is None:
-            print(json.dumps(res, indent=4))
-        else:
-            with open(opath,'w') as F:
-                json.dump(res, F, indent=4)
+
+    # TODO save all frames
+    # with open(f'{opath}/frames.json','w') as F:
+    #     json.dump(arch.frames, F, indent=4)
 
 if __name__ == "__main__":
     main(**parseargs(argv=sys.argv[1:]))

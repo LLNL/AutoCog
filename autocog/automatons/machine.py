@@ -164,11 +164,12 @@ class StateMachine(BaseModel):
                 if isinstance(fmt, Text):
                     LM = None
                     while LM is None:
-                        assert fmt.label in formats
+                        assert fmt.label in formats, f"Cannot find {fmt.label} in {formats.keys()}"
                         if fmt.label in LMs:
                             LM = LMs[fmt.label]
                         else:
                             assert fmt.base is not None, f"Probably reach the top of the format hierarchy and did not find a match in the provided LM configs: {LMs.keys()}"
+                            assert fmt.base in formats, f"Cannot find {fmt.base} in {formats.keys()}"
                             fmt = formats[fmt.base]
                     assert LM is not None
                     content = LM.complete(prompt=header+instance.prompt, stop=stop)

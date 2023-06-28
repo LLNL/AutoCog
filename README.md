@@ -38,41 +38,45 @@ Eventually, several notebooks demonstrating various part of AutoCog will be prov
 
 ### Command line
 
-#### Architecture
-
-Very limited for now but the goal is for AutoCog's `main` to build a `CogArch` then either serve an API or run a batch of commands.
-
-Low maintenance API, it uses JSON (filepath or inlined) to call `CogArch.build` then either `CogArch.run` or `CogArch.serve`.
-The arguments are:
- - name of the architecture
- - dictionary of LMs: `{ format : { "cls" : LM, kwarg : value } }`
- - dictionary of STAs: `{ tag : ( file , { macro : value } ) }`
- - dictionary of tools: `{ tag : { "cls" : Tool, kwarg : value } }` (TODO)
- - commands or server config
-   - commands: `[ ( tag, **inputs ) ]`
-   - server config: TODO
-```
-python3 -m autocog "test-0" \
-                   '{ "text" : { "cls" : "OpenAI", "max_tokens" : 20, "temperature" : 0.4 } }' \
-                   '{ "fortune" : [ "./library/fortune.sta", {} ] }' \
-                   '{}' \
-                   '[ [ "fortune", { "question" : "Is Eureka, CA a good place for a computer scientist who love nature?" } ] ]'
-```
-
-#### Tools
-
-Tools can be tested using the `main` from `autocog.tools`.
-The first argument is the name (class) of the tool (tool need to be added in `main`).
-The second is the keyword arguments for the constructor of the tool.
-The third argument is the keyword arguments for calling the tools.
-Both third and fourth can either be inlined JSON or the path to a JSON file.
-The fourth (optional) argument is the file where the JSON ouput should be written (stdout if missing)
+`python -m autocog --help`
 
 ```
-python3 -m autocog.tools pdfminer '{}' '{ "filepath" : "sta-arxiv.pdf" }' pdf.json
-python3 -m autocog.tools orgmode '{}' '{ "filepath" : "share/example.org" }' org.json
-python3 -m autocog.tools serpapi '{ "apikey" : "'$SERPAPI_API_KEY'" }' '{ "engine" : "google_scholar", "query" : "Structured Thought Automaton" }'
+usage: __main__.py [-h] [--version] [--lm LM] [--program PROGRAM] [--tool TOOL] [--prefix PREFIX] [--tee TEE] [--fmt FMT] [--serve] [--host HOST] [--port PORT] [--debug] [--command COMMAND]
+                   [--opath OPATH]
+
+options:
+  -h, --help         show this help message and exit
+  --version          show program's version number and exit
+  --lm LM            Inlined JSON or path to a JSON file: `{ "text" : { "cls" : "OpenAI", ... } }` see TODO for details. (default: None)
+  --program PROGRAM  Inlined JSON or path to a JSON file: `{ "writer" : { "filepath" : "./library/writer/simple.sta", ... } }` see TODO for details. (default: None)
+  --tool TOOL        Inlined JSON or path to a JSON file: `{ "search" : { "cls" : "SerpApi", ... } }` see TODO for details. (default: None)
+  --prefix PREFIX    String to identify this instance of AutoCog (used when displaying and saving the prompts) (default: autocog)
+  --tee TEE          Filepath or `stdout` or `stderr`. If present, prompts will be append to that file as they are executed. (default: None)
+  --fmt FMT          Format string used to save individual prompts to files. If present but empty (or `default`), `{p}/{c}/{t}-{i}.txt` is used. `p` is the prefix. `c` is the sequence id of the call. `t`
+                     is the prompt name. `i` is the prompt sequence id. WARNING! This will change as the schema is obsolete! (default: None)
+  --serve            Whether to launch the flask server. (default: False)
+  --host HOST        Host for flask server. (default: localhost)
+  --port PORT        Port for flask server. (default: 5000)
+  --debug            Whether to run the flask server in debug mode. (default: False)
+  --command COMMAND  Inlined JSON or path to a JSON file: `{ 'callee' : 'writer', ... }` see TODO for details. (default: None)
+  --opath OPATH      If present, JSON outputs of the commands will be stored in that file. If missing, they are written to stdout. (default: None)
 ```
+
+For example, we can serve a full architecture using:
+```
+python3 -m autocog --serve --host 0.0.0.0 --port 1001 \
+                   --program '{ "writer" : { "filepath":"./library/writer/simple.sta", "content" : "report", "R" : 3, "P" : 2, "N" : 3 } }' \
+                   --lm '{ "text"     : { "cls" : "OpenAI", "config" : { "max_tokens" : 20, "temperature" : 0.4 } } }' \
+                   --lm '{ "thought"  : { "cls" : "OpenAI", "config" : { "max_tokens" : 15, "temperature" : 1.0 } } }' \
+                   --lm '{ "sentence" : { "cls" : "OpenAI", "config" : { "max_tokens" : 30, "temperature" : 0.7 } } }' \
+                   --command '{ "tag" : "writer", "idea" : "using finite automaton to constrain the production of auto-regressive language models"  }'
+```
+This command:
+ - build the architecture with one program and 3 LM wrapppers
+ - execute the command
+ - write `resutls.json`
+ - launch the server
+ - wait for Ctrl-C
 
 ### Testing
 

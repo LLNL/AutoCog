@@ -4,11 +4,17 @@ import json
 import argparse
 
 from ..architecture.base import CognitiveArchitecture
+from ..architecture.orchestrator import Serial, Async
 from ..architecture.utility import PromptTee
+
+from ..lm import OpenAI, TfLM, Llama
+LMs = { 'OpenAI' : OpenAI, 'TfLM' : TfLM, 'LLaMa' : Llama }
 
 def argparser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--version',  action='version', version=f'AutoCog v0.1.0') # TODO `autocog.version:str=read('VERSION')`
+
+    parser.add_argument('--orch',     help="""Type of orchestrator: `serial` or `async`.""", default='serial')
 
     parser.add_argument('--lm',       action='append', help="""Inlined JSON or path to a JSON file: `{ "text"   : { "cls" : "OpenAI", ... } }` see TODO for details.""")
     parser.add_argument('--program',  action='append', help="""Inlined JSON or path to a JSON file: `{ "writer" : { "filepath" : "./library/writer/simple.sta", ... } }` see TODO for details.""")
@@ -18,13 +24,14 @@ def argparser():
     parser.add_argument('--tee',      help="""Filepath or `stdout` or `stderr`. If present, prompts will be append to that file as they are executed.""")
     parser.add_argument('--fmt',      help="""Format string used to save individual prompts to files. If present but empty (or `default`), `{p}/{c}/{t}-{i}.txt` is used. `p` is the prefix. `c` is the sequence id of the call. `t` is the prompt name. `i` is the prompt sequence id. WARNING! This will change as the schema is obsolete!""")
 
+    parser.add_argument('--serve',    help="""Whether to launch the flask server.""", action='store_true')
     parser.add_argument('--host',     help="""Host for flask server.""", default='localhost')
     parser.add_argument('--port',     help="""Port for flask server.""", default='5000')
     parser.add_argument('--debug',    help="""Whether to run the flask server in debug mode.""", action='store_true')
 
 
     parser.add_argument('--command',  action='append', help="""Inlined JSON or path to a JSON file: `{ 'callee' : 'writer',  ... }` see TODO for details.""")
-    parser.add_argument('--opath',    help="""If present, JSON outputs of the commands will be stored in that file. If missing, they are written to stdout.""")
+    parser.add_argument('--opath',    help="""Directory where results are stored.""", default=os.getcwd())
     
     return parser
 
@@ -33,6 +40,23 @@ def parse_json(arg):
         return json.load(open(arg))
     else:
         return json.loads(arg)
+
+def parse_lm(cls:str, **kwargs):
+    global LMs
+    if cls in LMs:
+        cls = LMs[cls]
+    else:
+        raise Exception(f"Unknown LM class: {cls} (should be one of {','.join(LMs.keys())})")
+
+    model_kwargs = kwargs['model'] if 'model' in kwargs else {}
+    model_kwargs = cls.create(**model_kwargs)
+    if 'config' in kwargs:
+        model_kwargs.update({ "completion_kwargs" : kwargs['config'] })
+    return cls(**model_kwargs)
+
+
+def parse_lms(lms):
+    return { fmt : parse_lm(**lm) for (fmt,lm) in lms.items() }
 
 def parseargs(argv):
     parser = argparser()
@@ -51,20 +75,17 @@ def parseargs(argv):
         else:
             pipe_kwargs.update({ 'fmt' : args.fmt })
 
-    arch = CognitiveArchitecture(pipe=PromptTee(**pipe_kwargs))
+    if args.orch == 'serial':
+        Orch = Serial
+    elif args.orch == 'async':
+        Orch = Async
+    else:
+        raise Exception(f"Unknown Orchestrator: {args.orch}")
+    arch = CognitiveArchitecture(Orch=Orch, pipe=PromptTee(**pipe_kwargs))
 
-    LMs = {}
     if args.lm is not None:
         for lm in args.lm:
-            LMs.update(parse_json(lm))
-    for fmt in list(LMs.keys()):
-        desc = LMs[fmt]
-        cls = desc["cls"]
-        if cls in autocog.lm.__dict__:
-            cls = autocog.lm.__dict__[cls]
-        del desc["cls"]
-        LMs.update({ fmt : cls(**desc) })
-    arch.orchestrator.LMs.update(LMs)
+            arch.orchestrator.LMs.update(parse_lms(parse_json(lm)))
 
     programs = {}
     if args.program is not None:
@@ -80,7 +101,4 @@ def parseargs(argv):
     for (tag,tool) in tools.items():
         raise NotImplementedError()
 
-    res = { 'arch' : arch }
-    res.update({ 'opath' : args.opath, 'commands' : args.command })
-    res.update({ 'flask_host' : args.host, 'flask_port' : int(args.port), 'flask_debug' : args.debug })
-    return res
+    return { 'arch' : arch, 'opath' : args.opath, 'commands' : [ parse_json(cmd) for cmd in args.command ], 'serve' : args.serve, 'flask_host' : args.host, 'flask_port' : int(args.port), 'flask_debug' : args.debug }

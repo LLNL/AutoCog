@@ -6,7 +6,7 @@ import asyncio
 import os, sys, json, copy, pathlib
 
 from ..cogs import Cog
-from .orchestrator import Orchestrator, Sequential as SeqOrch
+from .orchestrator import Orchestrator, Serial
 
 from ..automatons.sta.automaton import StructuredThoughtAutomaton as STA
 
@@ -14,10 +14,11 @@ class CognitiveArchitecture(BaseModel):
     orchestrator: Orchestrator
     cogs: Dict[str,Cog] = {}
 
-    def __init__(self, Orch=SeqOrch, **kwargs):
+    def __init__(self, Orch=Serial, **kwargs):
         super().__init__(orchestrator=Orch(**kwargs))
 
     def reset(self):
+        """Reset the state of stateful Cogs. Usefull when testing tools"""
         for cog in self.cogs.values():
             cog.reset()
 
@@ -36,16 +37,16 @@ class CognitiveArchitecture(BaseModel):
         self.register(cog)
         return cog
     
-    def __call__(self, tag:str, **inputs):
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:  # 'RuntimeError: There is no current event loop...'
-            loop = None
+    async def __call__(self, tag:str, **inputs):
+        return (await self.orchestrator.execute(jobs=[ (tag,inputs) ], pid=0))[0]
 
-        if loop and loop.is_running():
-            return self.orchestrator.job(tag, inputs)
-        else:
-            return asyncio.run(self.orchestrator.job(tag, inputs))
+    async def run(self, commands):
+        jobs = []
+        for cmd in commands:
+            tag = cmd['tag']
+            del cmd['tag']
+            jobs.append( (tag,cmd) )
+        return await self.orchestrator.execute(jobs=jobs, pid=0)
 
     def toGraphViz(self):
         dotstr = ''

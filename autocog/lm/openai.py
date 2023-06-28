@@ -20,6 +20,10 @@ class OpenAI(LM):
     retries:int=10
     delta:float=1.
     growth:float=2.
+
+    @staticmethod
+    def create(**kwargs):
+        return kwargs
     
     def __call_with_retry(self, **kwargs):
         retry = self.retries
