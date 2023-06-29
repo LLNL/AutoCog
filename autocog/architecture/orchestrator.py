@@ -35,7 +35,7 @@ class Orchestrator(BaseModel):
         fid = len(self.frames)
         self.frames.append(Frame(pid=pid, ctag=ctag))
         self.frames[pid].subs.append(fid)
-        if isinstance(cog, Automaton):
+        if issubclass(cog.__class__, Automaton):
             if not self.pipe is None:
                 self.pipe.next()
             return ( fid, cog(fid=fid, **inputs) )
@@ -46,8 +46,12 @@ class Orchestrator(BaseModel):
         return [ self.job(ctag, inputs, pid) for (ctag, inputs) in jobs ]
 
     def callback(self, fid, result):
-        self.frames[fid].stacks = result[1]
-        return result[0]
+        frame = self.frames[fid]
+        if issubclass(self.cogs[frame.ctag].__class__, Automaton):
+            frame.stacks = result[1]
+            return result[0]
+        else:
+            return result
 
     @abstractmethod
     def prompt(self, fid:int, machine:StateMachine, instances:List[Instance], header:str, formats:Dict):

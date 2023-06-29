@@ -12,7 +12,7 @@ LMs = { 'OpenAI' : OpenAI, 'TfLM' : TfLM, 'LLaMa' : Llama }
 
 def argparser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--version',  action='version', version=f'AutoCog v0.1.0') # TODO `autocog.version:str=read('VERSION')`
+    parser.add_argument('--version',  action='version', version=f'AutoCog v0.1.1') # TODO `autocog.version:str=read('VERSION')`
 
     parser.add_argument('--orch',     help="""Type of orchestrator: `serial` or `async`.""", default='serial')
 

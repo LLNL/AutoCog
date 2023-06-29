@@ -33,7 +33,7 @@ async def run_sample(arch:CogArch, sample:str, **inputs):
     return {
         'sample' : sample,
         'inputs' : inputs,
-        'output' : res[0],
+        'output' : res,
         'prompts' : arch.orchestrator.pipe.output.getvalue(),
         'exectrace' : None # from stacks to list of (stm.tag + st.content + st.counts)
     }
