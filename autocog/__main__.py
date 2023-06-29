@@ -6,7 +6,7 @@ import asyncio
 
 from .utility.args2arch import parseargs
 
-def main(arch, serve, flask_host, flask_port, flask_debug, commands, opath):
+def main(arch, serve, host, port, debug, commands, opath):
     if os.path.exists(f'{opath}/frames.json'):
         pass # TODO load existing frames
 
@@ -17,7 +17,7 @@ def main(arch, serve, flask_host, flask_port, flask_debug, commands, opath):
 
     if serve:
         from .utility.server import serve
-        serve(arch, host=flask_host, port=flask_port, debug=flask_debug)
+        serve(arch, host=host, port=port, debug=debug)
 
     # TODO save all frames
     # with open(f'{opath}/frames.json','w') as F:

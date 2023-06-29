@@ -11,7 +11,12 @@ except ModuleNotFoundError as e:
     print("You must install `quart` and `quart_schema` to use AutoCog's server")
     raise e
 
-app = Quart('autocog', template_folder=os.path.realpath('share/webapp')) # TODO install ressources with pip
+from ..config import version
+
+app = Quart('autocog',
+            static_folder=os.path.realpath('share/webapp/static'), # TODO install ressources with pip
+            template_folder=os.path.realpath('share/webapp/templates') # TODO install ressources with pip
+           )
 QuartSchema(app)
 
 arch = None
@@ -20,7 +25,7 @@ arch = None
 async def index():
     global arch
     assert arch is not None
-    return await render_template("index.html", arch=arch)
+    return await render_template("main.html", version=version, arch=arch)
 
 @dataclass
 class RegisterInput:

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AutoCog {{version}}</title>
+  <link rel="stylesheet" href="{{url_for('static', filename='css/style.css')}}">
+</head>
+<body>
+  <!-- Tab buttons -->
+  <div class="tab-buttons">
+    <button class="tab-button active" onclick="showTab(0)">Automatons and Tools</button>
+    <button class="tab-button"        onclick="showTab(1)">LMs and Formats</button>
+    <button class="tab-button"        onclick="showTab(2)">Frames and Execution Traces</button>
+  </div>
+
+  <div class="tab-content">
+    <div class="tab active" id="tab1">
+      <h2>Automatons and Tools</h2>
+<ul>
+<!-- 'formats', 'entry', 'description', 'prompts', 'outputs', 'externs', 'inputs' -->
+{% for (tag,cog) in arch.cogs.items(): %}
+      <div><h3>{{ tag }} ({{ cog.__class__.__name__ }})</h3><ul>
+      <li>Description: <pre>{{ cog.description }}</pre></li>
+      <li>Entry:       <pre>{{ cog.entry   }}</pre></li>
+      <li>Inputs:      <pre>{{ cog.inputs  }}</pre></li> <!-- list -->
+      <li>Outputs:     <pre>{{ cog.outputs }}</pre></li> <!-- list -->
+      <li>Externs:
+        <ul>
+{% for (ctag,extern_) in cog.externs.items(): %}
+          <li>{{ctag}}: <pre>{{ extern_ }}</pre></li>
+{% endfor %}
+        </ul>
+      </li>
+      <li>Prompts:
+        <ul>
+{% for (ptag,prompt) in cog.prompts.items(): %}
+          <li>{{ptag}}: <pre>{{ prompt }}</pre></li>
+{% endfor %}
+        </ul>
+      </li>
+      </ul></div>
+{% endfor %}
+</ul>
+    </div>
+    <div class="tab" id="tab2">
+      <h2>LMs and Formats</h2>
+{% for (fmt,lm) in arch.orchestrator.LMs.items(): %}
+      <div><h3>{{ fmt }}</h3><pre>{{ lm.dict() }}</pre></div>
+{% endfor %}
+    </div>
+    <div class="tab" id="tab3">
+      <h2>Frames and Execution Traces</h2>
+{% for frame in arch.orchestrator.frames: %}
+      <div>{{ frame.dict() }}</div> <!-- use TABLE -->
+{% endfor %}
+    </div>
+  </div>
+
+  <script src="{{url_for('static', filename='js/scripts.js')}}"></script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import os
 import json
 import argparse
 
+from ..config import version
 from ..architecture.base import CognitiveArchitecture
 from ..architecture.orchestrator import Serial, Async
 from ..architecture.utility import PromptTee
@@ -12,7 +13,7 @@ LMs = { 'OpenAI' : OpenAI, 'TfLM' : TfLM, 'LLaMa' : Llama }
 
 def argparser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--version',  action='version', version=f'AutoCog v0.1.1') # TODO `autocog.version:str=read('VERSION')`
+    parser.add_argument('--version',  action='version', version=f'AutoCog {version}') # TODO `autocog.version:str=read('VERSION')`
 
     parser.add_argument('--orch',     help="""Type of orchestrator: `serial` or `async`.""", default='serial')
 
@@ -101,4 +102,8 @@ def parseargs(argv):
     for (tag,tool) in tools.items():
         raise NotImplementedError()
 
-    return { 'arch' : arch, 'opath' : args.opath, 'commands' : [ parse_json(cmd) for cmd in args.command ], 'serve' : args.serve, 'flask_host' : args.host, 'flask_port' : int(args.port), 'flask_debug' : args.debug }
+    return {
+        'arch' : arch,  'serve' : args.serve, 'opath' : args.opath,
+        'host' : args.host, 'port' : int(args.port), 'debug' : args.debug,
+        'commands' : None if args.command is None else [ parse_json(cmd) for cmd in args.command ]
+    }
