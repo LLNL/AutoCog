@@ -62,10 +62,9 @@ options:
   --opath OPATH      If present, JSON outputs of the commands will be stored in that file. If missing, they are written to stdout. (default: None)
 ```
 
-For example, we can serve a full architecture using:
+For example, we run commands using:
 ```
-python3 -m autocog --serve --host 0.0.0.0 --port 1001 \
-                   --program '{ "writer" : { "filepath":"./library/writer/simple.sta", "content" : "report", "R" : 3, "P" : 2, "N" : 3 } }' \
+python3 -m autocog --program '{ "writer" : { "filepath":"./library/writer/simple.sta", "content" : "report", "R" : 3, "P" : 2, "N" : 3 } }' \
                    --lm '{ "text"     : { "cls" : "OpenAI", "config" : { "max_tokens" : 20, "temperature" : 0.4 } } }' \
                    --lm '{ "thought"  : { "cls" : "OpenAI", "config" : { "max_tokens" : 15, "temperature" : 1.0 } } }' \
                    --lm '{ "sentence" : { "cls" : "OpenAI", "config" : { "max_tokens" : 30, "temperature" : 0.7 } } }' \
@@ -75,8 +74,26 @@ This command:
  - build the architecture with one program and 3 LM wrapppers
  - execute the command
  - write `resutls.json`
- - launch the server
- - wait for Ctrl-C
+
+### Web Application
+
+The goal is to provide a development environment.
+Particularly, the ability to inspect and edit/replay `frames`.
+These are created for each execution of an `Automaton` (nested when an `Automaton` call another `Automaton`).
+Upon ending, the execution trace of the `Automaton` is saved in the corresponding frame.
+
+Eventually, we want to use these traces for two purposes:
+ - replay: edit part of the trace then restart the program from that point
+ - finetuning: select "succesful" frames to finetune models
+
+Run the command below at the root of the repository to launch a server. It uses [quart](http://pgjones.gitlab.io/quart).
+```
+python3 -m autocog --serve --host 0.0.0.0 --port 1001 --program tests/library.json --lm tests/openai.json
+```
+[`tests/library.json`](./tests/library.json) instantiates a few programs from the library.
+[`tests/openai.json`](./tests/openai.json) instantiates OpenAI's GPT 3.5 (`text-davinci-003`).
+
+![Webapp -- Work in Progress](./share/webapp/webapp.png)]
 
 ### Testing
 

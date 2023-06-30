@@ -4,58 +4,109 @@
   <meta charset="UTF-8">
   <title>AutoCog {{version}}</title>
   <link rel="stylesheet" href="{{url_for('static', filename='css/style.css')}}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
-  <!-- Tab buttons -->
+
   <div class="tab-buttons">
-    <button class="tab-button active" onclick="showTab(0)">Automatons and Tools</button>
-    <button class="tab-button"        onclick="showTab(1)">LMs and Formats</button>
-    <button class="tab-button"        onclick="showTab(2)">Frames and Execution Traces</button>
+    <button class="tab-button active" onclick="showTab(0)">Automaton</button>
+    <button class="tab-button"        onclick="showTab(1)">Tools</button>
+    <button class="tab-button"        onclick="showTab(2)">LMs and Formats</button>
+    <button class="tab-button"        onclick="showTab(3)">Frames and Execution Traces</button>
   </div>
 
   <div class="tab-content">
-    <div class="tab active" id="tab1">
-      <h2>Automatons and Tools</h2>
-<ul>
-<!-- 'formats', 'entry', 'description', 'prompts', 'outputs', 'externs', 'inputs' -->
+    <div class="tab active" id="tab_automaton">
+      <div class="collapsible">
+        <h3><i class="fas fa-plus"></i> Register automaton</h3>
+        <div class="content">
+          <p>TODO: select file from library OR from textarea (+ load textarea from local file?)</p>
+          <p>TODO: add 'parse_program_macro' API that return all macros and their default values</p>
+          <p>TODO: after parsing, generate form for macro OR display errors</p>
+          <p>TODO: submit will resend the program alongside kwargs (aka macro)</p>
+          <p>TODO: when succesful cause page to reload</p>
+        </div>
+      </div>
+      <div class="grid-container">
 {% for (tag,cog) in arch.cogs.items(): %}
-      <div><h3>{{ tag }} ({{ cog.__class__.__name__ }})</h3><ul>
-      <li>Description: <pre>{{ cog.description }}</pre></li>
-      <li>Entry:       <pre>{{ cog.entry   }}</pre></li>
-      <li>Inputs:      <pre>{{ cog.inputs  }}</pre></li> <!-- list -->
-      <li>Outputs:     <pre>{{ cog.outputs }}</pre></li> <!-- list -->
-      <li>Externs:
-        <ul>
-{% for (ctag,extern_) in cog.externs.items(): %}
-          <li>{{ctag}}: <pre>{{ extern_ }}</pre></li>
+{%   if cog.__class__.__name__ == 'StructuredThoughtAutomaton' %}
+        <div class="panel">
+          <div class="panel-header collapsible">
+            <h3>{{ tag }} ({{ cog.__class__.__name__ }})</h3>
+            <div class="content">
+              <p>{{ cog.description }}</p>
+              <label>Inputs:</label>{%for kw in cog.inputs:%}<tt>{{kw}}&nbsp;</tt>{% endfor %}<br />
+{%     if cog.externs|length > 0 %}
+              <label>Externs:</label>{%for ctag in cog.externs:%}<tt>{{ctag}}&nbsp;</tt>{% endfor %}<br />
+{%     endif %}
+            </div>
+          </div>
+          <div class="panel-content">
+{%     for (ptag,prompt) in cog.prompts.items(): %}
+            <h4>Prompt: <tt>{{ptag}}</tt>{%if ptag == cog.entry %} (entry){% endif %}</h4>
+            <div id="svg_{{tag}}_{{ptag}}" class="svg_container">{{ gv2svg(prompt.toGraphViz())|safe }}</div>
+{%     endfor %}
+          </div>
+          <div class="panel-footer">
+            <div class="action-buttons">
+              <button class="action-button delete-button">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+              <button class="action-button copy-button">
+                <i class="far fa-copy"></i> Copy
+              </button>
+              <button class="action-button rename-button">
+                <i class="far fa-edit"></i> Rename
+              </button>
+              <button class="action-button edit-button">
+                <i class="fas fa-pencil-alt"></i> Edit
+              </button>
+              <button class="action-button export-button">
+                <i class="fas fa-download"></i> Export
+              </button>
+            </div>
+          </div>
+        </div>
+{%   endif %}
 {% endfor %}
-        </ul>
-      </li>
-      <li>Prompts:
-        <ul>
-{% for (ptag,prompt) in cog.prompts.items(): %}
-          <li>{{ptag}}: <pre>{{ prompt }}</pre></li>
-{% endfor %}
-        </ul>
-      </li>
-      </ul></div>
-{% endfor %}
-</ul>
+      </div>
     </div>
-    <div class="tab" id="tab2">
-      <h2>LMs and Formats</h2>
+    <div class="tab" id="tab_tools">
+      <div class="grid-container">
+{% for (tag,cog) in arch.cogs.items(): %}
+{%   if cog.__class__.__name__ != 'StructuredThoughtAutomaton' %}
+        <div class="panel">
+          <h3>{{ tag }} ({{ cog.__class__.__name__ }})</h3>
+        </div>
+{%   endif %}
+{% endfor %}
+      </div>
+    </div>
+    <div class="tab" id="tab_formats">
 {% for (fmt,lm) in arch.orchestrator.LMs.items(): %}
       <div><h3>{{ fmt }}</h3><pre>{{ lm.dict() }}</pre></div>
 {% endfor %}
     </div>
-    <div class="tab" id="tab3">
-      <h2>Frames and Execution Traces</h2>
+    <div class="tab" id="tab_frames">
 {% for frame in arch.orchestrator.frames: %}
       <div>{{ frame.dict() }}</div> <!-- use TABLE -->
 {% endfor %}
     </div>
   </div>
 
+  <script src="https://bumbu.me/svg-pan-zoom/dist/svg-pan-zoom.min.js"></script>
   <script src="{{url_for('static', filename='js/scripts.js')}}"></script>
+  <script>
+window.onload = function () {
+  register_collapsibles();
+{% for (tag,cog) in arch.cogs.items(): %}
+{%   if cog.__class__.__name__ == 'StructuredThoughtAutomaton' %}
+{%     for (ptag,prompt) in cog.prompts.items(): %}
+  register_svg("svg_{{tag}}_{{ptag}}");
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+}
+  </script>
 </body>
 </html>

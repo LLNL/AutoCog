@@ -1,5 +1,5 @@
 
-import os
+import os,json
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple, Union, Optional, NamedTuple
@@ -13,6 +13,8 @@ except ModuleNotFoundError as e:
 
 from ..config import version
 
+from .gv2html import gv2svg
+
 app = Quart('autocog',
             static_folder=os.path.realpath('share/webapp/static'), # TODO install ressources with pip
             template_folder=os.path.realpath('share/webapp/templates') # TODO install ressources with pip
@@ -25,7 +27,7 @@ arch = None
 async def index():
     global arch
     assert arch is not None
-    return await render_template("main.html", version=version, arch=arch)
+    return await render_template("main.html", version=version, arch=arch, json=json, gv2svg=gv2svg)
 
 @dataclass
 class RegisterInput:

@@ -1,0 +1,23 @@
+{
+    "text": {
+        "cls": "OpenAI",
+        "config": {
+            "max_tokens": 20,
+            "temperature": 0.4
+        }
+    },
+    "thought": {
+        "cls": "OpenAI",
+        "config": {
+            "max_tokens": 15,
+            "temperature": 1.0
+        }
+    },
+    "sentence": {
+        "cls": "OpenAI",
+        "config": {
+            "max_tokens": 30,
+            "temperature": 0.7
+        }
+    }
+}
