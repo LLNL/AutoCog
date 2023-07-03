@@ -54,9 +54,6 @@ class PromptTee(PromptPipe):
         if self.fmt is not None:
             path = self.fmt.format(p=self.prefix, c=self.cnt, t=self.tag, i=self.idx)
             pathlib.Path(os.path.dirname(path)).mkdir(parents=True, exist_ok=True)
-            if self.tag is not None and self.idx is not None:
-                with open(path,'w') as F:
-                    F.write('')
 
     def write(self, text):
         super().write(text)
