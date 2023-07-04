@@ -10,7 +10,7 @@ except:
 from autocog.architecture.utility import PromptTee
 from autocog.utility.args2arch import parse_json
 
-library_path = os.getenv('AUTOCOG_LIB', f'{autocog_home}/library')
+library_path = os.getenv('MMLU_LIB', './programs')
 model_basedir = os.getenv('MODEL_PATH', '/workspace/models')
 
 from utility import mmlu_create_arch, mmlu_register_local
@@ -20,16 +20,6 @@ resdir   = sys.argv[1]
 patterns = parse_json(sys.argv[2])
 models   = parse_json(sys.argv[3])
 datacfg  = parse_json(sys.argv[4])
-
-# python3 exam.py ./results \
-#     '{ "s_mapeval" : [ "mapeval", "select", {} ], "r_mapeval" : [ "mapeval", "repeat", {} ] }' \
-#     '[ { "model" : "llama", "size" : "7B" } ]' \
-#     '{ "topic" : ["elementary_mathematics"], "mode" : null, "limit" : 10, "shuffle" : true }'
-
-# python3 exam.py ./results \
-#     '{ "s_mapeval" : [ "mapeval", "select", {} ], "r_mapeval" : [ "mapeval", "repeat", {} ] }' \
-#     '[ { "model" : "llama", "size" : "7B" } ]' \
-#     '{ "topic" : null, "mode" : "dev", "limit" : 2, "shuffle" : true }'
 
 dataset = mmlu_subset(dataset=mmlu_data(), **datacfg)
 # mmlu_list(dataset)
@@ -43,4 +33,9 @@ for model in models:
     json.dump(results, open(f'{resdir}/{label}.json','w'), indent=4)
     for (version,result) in results.items():
         if len(result) > 0:
-            print(f"  {version}: {len(list(filter(lambda x: x[-1], result)))*100./len(result)}%")
+            num_total   = len(result)
+            num_correct = len(list(filter(lambda x: x is not None and x[-1], result)))
+            num_error   = len(list(filter(lambda x: x is not None and not x[-1], result)))
+            num_failed  = len(list(filter(lambda x: x is None, result)))
+            percentage  = int(num_correct * 10e4 / (num_correct+num_error))*10e-2
+            print(f"  {version}: {percentage}% (total: {num_total}, correct: {num_correct}, error: {num_error}, failed: {num_failed})")

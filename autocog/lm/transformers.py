@@ -1,4 +1,5 @@
 
+import gc
 import time
 
 from typing import Any, Dict, List, Tuple, Union, Optional, Callable, NamedTuple
@@ -10,6 +11,16 @@ try:
 except:
     transformers = "Package `transformers` needed for (Huggingface's) transformers wrapper"
     print(f"Warning: {transformers}")
+
+try:
+    import torch
+except:
+    torch = None
+
+def clear_caches():
+    gc.collect()
+    if torch is not None:
+        torch.cuda.empty_cache()
 
 class TfLM(LocalLM):
     tokenizer: Any
@@ -41,10 +52,15 @@ class TfLM(LocalLM):
 
     def impl_greedy(self, prompt: str) -> List[float]:
         input_ids = self.tokenizer.encode(prompt, add_special_tokens=True, return_tensors='pt')
-        if self.device is not None:
-            input_ids = input_ids.to(self.device)
-        logits = self.model(input_ids=input_ids).logits
-        return logits[0,0].tolist()
+        try:
+            if self.device is not None:
+                input_ids = input_ids.to(self.device)
+            logits = self.model(input_ids=input_ids).logits
+            logits = logits[0,0].tolist()
+        except RuntimeError as e:
+            clear_caches()
+            raise e
+        return logits
 
     def complete(self, prompt: str, stop:str='\n') -> str:
         input_ids = self.tokenizer.encode(prompt, add_special_tokens=True, return_tensors='pt')

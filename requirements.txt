@@ -1,3 +1,3 @@
-numpy==1.24.3
-pydantic==1.10.7
-typing_extensions==4.5.0
+numpy
+pydantic
+typing_extensions

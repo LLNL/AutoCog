@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import time
 import tqdm
 import random
 import asyncio
@@ -19,7 +20,7 @@ def mmlu_create_arch(library_path, patterns):
     arch = CogArch()
     scorers = {}
     for (tag,(pattern,mode,kwargs)) in patterns.items():
-        arch.load(tag=tag, filepath=f'{library_path}/mmlu/{pattern}-{mode}.sta', **kwargs)
+        arch.load(tag=tag, filepath=f'{library_path}/{pattern}-{mode}.sta', **kwargs)
         scorers.update({ tag : mcq_checkers[mode] })
     return (arch, scorers)
 
@@ -49,16 +50,16 @@ def mmlu_register_local(arch, model, size=None, quant=None, use_path_length_norm
         else:
             label = f'{model}-{size}-{text_length}'
             model_path = f'{model_basedir}/{model}/{size}'
-            assert os.path.exists(model_path)
+            assert os.path.exists(model_path), f"model_path={model_path}"
     else:
         mmlu_register = mmlu_register_llama_cpp
         if size is None:
-            label = f'{model}-{size}-{quant}-{text_length}'
-            model_path = f'{model_basedir}/{model}/{size}/ggml-model-{quant}.bin'
-        else:
             label = f'{model}-{quant}-{text_length}'
             model_path = f'{model_basedir}/{model}/ggml-model-{quant}.bin'
-        assert os.path.exists(model_path)
+        else:
+            label = f'{model}-{size}-{quant}-{text_length}'
+            model_path = f'{model_basedir}/{model}/{size}/ggml-model-{quant}.bin'
+        assert os.path.exists(model_path), f"model_path={model_path}"
     label = label.replace('/','_')
     if use_path_length_normalization:
         label += '-norm'
@@ -104,13 +105,23 @@ def mmlu_subset(dataset, topic=None, mode=None, limit=None, shuffle=True):
         data = data[:limit]
     return data
 
-def mmlu_exec(arch, scorers, dataset):
+def mmlu_exec(arch, scorers, dataset, max_retry=3):
     versions = scorers.keys()
     results = { v : [] for v in versions }
     workload = list(itertools.product(versions,dataset))
     random.shuffle(workload)
     for (version,data) in tqdm.tqdm(workload):
         idx = ord(data["answer"])-ord('A')
-        res = asyncio.run(arch(version, question=data['question'], choices=data['choices']))
-        results[version].append( (data, res, scorers[version](res,data,idx)) )
+        res = None
+        cnt = 0
+        while res is None and cnt < max_retry:
+            try:
+                res = asyncio.run(arch(version, question=data['question'], choices=data['choices']))
+                res = (data, res, scorers[version](res,data,idx))
+            except Exception as e:
+                cnt += 1
+                print(f"EXCEPTION[{cnt}]: {e}")
+                time.sleep(1.)
+                res = None
+        results[version].append(res)
     return results
