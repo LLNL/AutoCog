@@ -55,6 +55,26 @@ class StructuredThought(Instance):
         
     def ravel(self, lbl):
         return self.__ravel_rec(lbl, self.content)
+
+    def __ravel_path_rec(self, path, content):
+        assert len(path) > 0
+        if isinstance(content,dict) and path[0] in content:
+            content = content[path[0]]
+            if not isinstance(content,list):
+                content = [content]
+            if len(path) == 1:
+                return content
+        else:
+            return []
+        assert isinstance(content,list)
+
+        res = []
+        for content_ in content:
+            res += self.__ravel_path_rec(path[1:], content_)
+        return res
+
+    def ravel_path(self, path):
+        return self.__ravel_path_rec(path, self.content)
     
     def need_prompt(self):
         vstate = self.vstate()

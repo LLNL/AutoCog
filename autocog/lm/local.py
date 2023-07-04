@@ -22,6 +22,8 @@ class LocalLM(TokenizerLM):
     delta:float=1.
     growth:float=2.
 
+    use_path_length_normalization:bool=False
+
     @abstractmethod
     def impl_greedy(self, prompt:str) -> List[float]:
         pass
@@ -41,4 +43,4 @@ class LocalLM(TokenizerLM):
         raise Exception(f"Persisting exception when calling {self.__class__.__name__}.greedy()\n  => {params}\n - {errors}")
 
     def choose(self, prompt: str, choices: List[str]) -> int:
-        return TokenChoiceTree.choose(self, prompt=prompt, texts=choices)
+        return TokenChoiceTree.choose(self, prompt=prompt, texts=choices, use_path_length_normalization=self.use_path_length_normalization)

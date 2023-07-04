@@ -40,7 +40,7 @@ class StructuredThoughtPrompt(BaseModel):
     fmts:         str = "Each prompt expects one of the following formats:"
     postscriptum: str = "Terminate each prompt with a newline. Use as many statement with `thought` format as needed."
 
-    header: str = "{prehamble}\n{automaton}\n{prompt}\n{basics}\n{mechs}\n```\n{mechanics}```\n{fmts}\n{formats}\n{postscriptum}\n\nstart(record):\n"
+    header: str = "{prehamble} {automaton} {prompt}\n{basics}\n{mechs}\n```\n{mechanics}```\n{fmts}\n{formats}\n{postscriptum}\n\nstart(record):\n"
 
     def toGraphViz(self):
         dotstr = 'ranksep=1;\n'

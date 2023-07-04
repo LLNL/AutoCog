@@ -10,33 +10,60 @@ import itertools
 from autocog import CogArch
 from autocog.lm import OpenAI, TfLM, Llama
 
-def mmlu_create_arch(library_path, patterns=['direct','cot']):
+mcq_checkers = {
+  'select' : lambda r,d,i: int(r["answer"]) == i+1,
+  'repeat' : lambda r,d,i: r["answer"] == d['choices'][i]
+}
+
+def mmlu_create_arch(library_path, patterns):
     arch = CogArch()
     scorers = {}
-    check_select = lambda r,d,i: int(r["answer"]) == i+1
-    check_repeat = lambda r,d,i: r["answer"] == d['choices'][i]
-    for pattern in patterns:
-        arch.load(tag=f'{pattern}-select', filepath=f'{library_path}/mmlu/{pattern}-select.sta')
-        arch.load(tag=f'{pattern}-repeat', filepath=f'{library_path}/mmlu/{pattern}-repeat.sta')
-        scorers.update({ f'{pattern}-select' : check_select, f'{pattern}-repeat' : check_repeat })
+    for (tag,(pattern,mode,kwargs)) in patterns.items():
+        arch.load(tag=tag, filepath=f'{library_path}/mmlu/{pattern}-{mode}.sta', **kwargs)
+        scorers.update({ tag : mcq_checkers[mode] })
     return (arch, scorers)
 
-def mmlu_register_openai(arch, model='text-davinci-003'):
+def mmlu_register_openai(arch, text_length=30, **kwargs):
     arch.orchestrator.LMs.update({
-      'text' : OpenAI(completion_kwargs={ 'max_tokens' : 30 }, model=model)
+      'text' : OpenAI(completion_kwargs={ 'max_tokens' : text_length }, **kwargs)
     })
 
-def mmlu_register_tflm(arch, model_path='gpt2-medium', device='cuda'):
+def mmlu_register_tflm(arch, text_length=30, model_path='gpt2-medium', device='auto', **kwargs):
     model_kwargs = TfLM.create(model_path=model_path, device=device)
     arch.orchestrator.LMs.update({
-      'text' : TfLM(completion_kwargs={ 'max_new_tokens' : 30 }, **model_kwargs)
+      'text' : TfLM(completion_kwargs={ 'max_new_tokens' : text_length }, **model_kwargs, **kwargs)
     })
 
-def mmlu_register_llama_cpp(arch, model_path='/workspace/models/7B/ggml-model-q4_0.bin', n_ctx=2048):
+def mmlu_register_llama_cpp(arch, text_length=30, model_path='/workspace/models/llama/7B/ggml-model-q4_0.bin', n_ctx=2048, **kwargs):
     model_kwargs = Llama.create(model_path=model_path, n_ctx=n_ctx)
     arch.orchestrator.LMs.update({
-      'text' : Llama(completion_kwargs={ 'max_tokens' : 30 }, **model_kwargs)
+      'text' : Llama(completion_kwargs={ 'max_tokens' : text_length }, **model_kwargs, **kwargs)
     })
+
+def mmlu_register_local(arch, model, size=None, quant=None, use_path_length_normalization=False, text_length=30, model_basedir='/workspace/models', **kwargs):
+    if quant is None:
+        mmlu_register = mmlu_register_tflm
+        if size is None:
+            label = f'{model}-{text_length}'
+            model_path = model
+        else:
+            label = f'{model}-{size}-{text_length}'
+            model_path = f'/workspace/models/{model}/{size}'
+            assert os.path.exists(model_path)
+    else:
+        mmlu_register = mmlu_register_llama_cpp
+        if size is None:
+            label = f'{model}-{size}-{quant}-{text_length}'
+            model_path = f'/workspace/models/{model}/{size}/ggml-model-{quant}.bin'
+        else:
+            label = f'{model}-{quant}-{text_length}'
+            model_path = f'/workspace/models/{model}/ggml-model-{quant}.bin'
+        assert os.path.exists(model_path)
+    label = label.replace('/','_')
+    if use_path_length_normalization:
+        label += '-norm'
+    mmlu_register(arch, model_path=model_path, use_path_length_normalization=use_path_length_normalization, text_length=text_length, **kwargs)
+    return label
 
 def mmlu_data(dataset_path=None):
     if os.path.exists('mmlu-data.json'):
@@ -67,7 +94,9 @@ def mmlu_list(data):
 def mmlu_subset(dataset, topic=None, mode=None, limit=None, shuffle=True):
     data = []
     for d in dataset:
-        if (topic is None or d['topic'] == topic) and (mode is None or d['mode'] == mode):
+        on_topic = topic is None or ( isinstance(topic,str) and d['topic'] == topic ) or ( isinstance(topic,list) and d['topic'] in topic )
+        on_mode  = mode  is None or ( isinstance(mode, str) and d['mode' ] == mode  ) or ( isinstance(mode, list) and d['mode' ] in mode )
+        if on_topic and on_mode:
             data.append(d)
     if shuffle:
         random.shuffle(data)
@@ -75,9 +104,8 @@ def mmlu_subset(dataset, topic=None, mode=None, limit=None, shuffle=True):
         data = data[:limit]
     return data
 
-def mmlu_exec(arch, scorers, dataset, versions=None):
-    if versions is None:
-        versions = scorers.keys()
+def mmlu_exec(arch, scorers, dataset):
+    versions = scorers.keys()
     results = { v : [] for v in versions }
     workload = list(itertools.product(versions,dataset))
     random.shuffle(workload)

@@ -177,15 +177,13 @@ class StateMachine(BaseModel):
                     if isinstance(fmt, Enum):
                         choices = fmt.choices
                     elif isinstance(fmt, Repeat):
-                        assert len(fmt.source) == 2
+                        assert len(fmt.source) > 0
                         assert fmt.source[0] == ''
-                        content = instance.content
-                        assert fmt.source[1] in content
-                        content = content[fmt.source[1]]
-                        assert isinstance(content, list)
-                        choices = content
+                        choices = instance.ravel_path(fmt.source[1:])
+                        assert isinstance(choices, list)
                     else:
                         raise Exception(f"Unknown Choice format: {fmt}")
+                    assert len(choices) > 0
                     choice = LMs['text'].choose(prompt=header+instance.prompt, choices=choices)
                     content = choices[choice] + stop
                 else:

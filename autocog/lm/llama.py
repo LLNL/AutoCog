@@ -19,6 +19,8 @@ class Llama(LocalLM):
         super().__init__(model=model, completion_kwargs=completion_kwargs, **kwargs)
 
     def tokenize(self, text:str) -> List[int]:
+        if not isinstance(text,str):
+            raise Exception(f'text={text}')
         return self.model.tokenize(bytes(text, 'utf-8'))[1:]
 
     def detokenize(self, tokens:List[int]) -> str:

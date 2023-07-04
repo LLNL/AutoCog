@@ -1,13 +1,18 @@
-entry(mmlu_cot_select): You are taking the MMLU exam.
+prehamble: You are taking the MMLU Examination, a multiple choice questionnaire on a broad variety of subjects. For each question, you must pick the correct answer from four choices.
+basics: The following questionnaire present one question from the exam. As an expert in the domain, you will provide the best answer possible.
+
+entry(mmlu_cot_select): Proceed step-by-step and show your work to make sure that you have the correct result.
 
 formats:
 - choice(enum=1,2,3,4): index of the correct answer in the list of choices
 
-prompt(mmlu_cot_select): You are given one question and four choices for the answer. Only one of these choices is the correct answer. Which choice is correct?
+prompt(mmlu_cot_select):
 - target(question)
 - target(choices)
 > question: a question from the MMLU exam
 > choices[4]: four choices that could answer this question. Only one is the correct answer.
-> work[10](thought): show and explain your work as you solve the problem, you can use up to 10 lines.
-> answer(choice): the index of the correct answer in the list of choices
-__exit(answer,work):
+> work[{N}](thought): show and explain your work as you solve the problem, you can use up to {N} lines.
+> answer(choice): Which choice is correct? Pick one of 1, 2, 3, or 4.
+__exit(answer):
+
+?N=10
