@@ -3,50 +3,48 @@ import numpy
 from typing import List
 
 class TokenChoiceTree:
-    def __init__(self, llm, token=None, depth=0, parent=None, use_path_length_normalization=True):
-        self.llm = llm
+    def __init__(self, token=None, depth=0, parent=None):
         self.token = token
         self.depth = depth
         self.parent = parent # only used for GraphViz
         self.children = {}
         self.proba = None # probability of this token to be produced given its parent. None for the root.
         self.cumul = 1. # probability of this path being taken (product of `causal`). "1." for the root.
-        self.use_path_length_normalization = use_path_length_normalization
 
     def __add(self, sequence:List[int]):
         tok = sequence[0]
         if not tok in self.children:
-            self.children.update({ tok : TokenChoiceTree(self.llm, token=tok, depth=self.depth+1, parent=self) })
+            self.children.update({ tok : TokenChoiceTree(token=tok, depth=self.depth+1, parent=self) })
         tree = self.children[tok]
         return tree if len(sequence) == 1 else tree.__add(sequence[1:])
 
-    def add(self, text:str):
-        return self.__add(self.llm.tokenize(text))
+    def add(self, llm, text:str):
+        return self.__add(llm.tokenize(text))
 
-    def decode(self):
-        return '' if self.token is None else self.llm.detokenize([self.token])
+    def decode(self, llm):
+        return '' if self.token is None else llm.detokenize([self.token])
 
-    def eval(self, prompt):
+    def eval(self, llm, prompt):
         if self.token is not None:
-            prompt += self.decode()
+            prompt += self.decode(llm)
 
-        probs = numpy.exp(self.llm.greedy(prompt))
+        probs = numpy.exp(llm.greedy(prompt))
         for tree in self.children.values():
             tree.proba = probs[tree.token]
             tree.cumul = self.cumul * tree.proba
-            tree.eval(prompt)
+            tree.eval(llm, prompt)
 
-    def prob(self):
+    def prob(self, use_path_length_normalization=False):
         if self.depth == 0 or self.cumul is None:
             return None
-        return numpy.power(self.cumul, 1./self.depth) if self.use_path_length_normalization else self.cumul
+        return numpy.power(self.cumul, 1./self.depth) if use_path_length_normalization else self.cumul
 
     @classmethod
-    def run(cls, llm, prompt, texts, **kwargs):
-        tree = cls(llm, **kwargs)
-        leaves = [ tree.add(t) for t in texts ]
-        tree.eval(prompt)
-        return (tree, [ l.prob() for l in leaves ])
+    def run(cls, llm, prompt, texts, use_path_length_normalization=False, **kwargs):
+        tree = cls(**kwargs)
+        leaves = [ tree.add(llm, t) for t in texts ]
+        tree.eval(llm, prompt)
+        return (tree, [ l.prob(use_path_length_normalization=use_path_length_normalization) for l in leaves ])
 
     @classmethod
     def choose(cls, llm, prompt, texts, **kwargs):
