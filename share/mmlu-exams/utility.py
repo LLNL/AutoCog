@@ -48,16 +48,16 @@ def mmlu_register_local(arch, model, size=None, quant=None, use_path_length_norm
             model_path = model
         else:
             label = f'{model}-{size}-{text_length}'
-            model_path = f'/workspace/models/{model}/{size}'
+            model_path = f'{model_basedir}/{model}/{size}'
             assert os.path.exists(model_path)
     else:
         mmlu_register = mmlu_register_llama_cpp
         if size is None:
             label = f'{model}-{size}-{quant}-{text_length}'
-            model_path = f'/workspace/models/{model}/{size}/ggml-model-{quant}.bin'
+            model_path = f'{model_basedir}/{model}/{size}/ggml-model-{quant}.bin'
         else:
             label = f'{model}-{quant}-{text_length}'
-            model_path = f'/workspace/models/{model}/ggml-model-{quant}.bin'
+            model_path = f'{model_basedir}/{model}/ggml-model-{quant}.bin'
         assert os.path.exists(model_path)
     label = label.replace('/','_')
     if use_path_length_normalization:
