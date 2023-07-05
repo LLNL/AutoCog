@@ -1,9 +1,6 @@
 
-import gc
-import time
-
 from typing import Any, Dict, List, Tuple, Union, Optional, Callable, NamedTuple
-from .local import LocalLM
+from .choice import ChoiceLM
 
 try:
     import transformers
@@ -12,17 +9,7 @@ except:
     transformers = "Package `transformers` needed for (Huggingface's) transformers wrapper"
     print(f"Warning: {transformers}")
 
-try:
-    import torch
-except:
-    torch = None
-
-def clear_caches():
-    gc.collect()
-    if torch is not None:
-        torch.cuda.empty_cache()
-
-class TfLM(LocalLM):
+class TfLM(ChoiceLM):
     tokenizer: Any
     device: str
 
@@ -52,14 +39,10 @@ class TfLM(LocalLM):
 
     def impl_greedy(self, prompt: str) -> List[float]:
         input_ids = self.tokenizer.encode(prompt, add_special_tokens=True, return_tensors='pt')
-        try:
-            if self.device is not None:
-                input_ids = input_ids.to(self.device)
-            logits = self.model(input_ids=input_ids).logits
-            logits = logits[0,0].tolist()
-        except RuntimeError as e:
-            clear_caches()
-            raise e
+        if self.device is not None:
+            input_ids = input_ids.to(self.device)
+        logits = self.model(input_ids=input_ids).logits
+        logits = logits[0,0].tolist()
         return logits
 
     def complete(self, prompt: str, stop:str='\n') -> str:
@@ -78,11 +61,11 @@ class TfLM(LocalLM):
         )
         tokens = output_sequences[0].tolist()
         tokens = tokens[input_ids.shape[1]:]
-        output_text = self.tokenizer.decode(tokens)
+        output_text = self.detokenize(tokens)
         if output_text.find(stop) != -1:
             ## it seems that when `max_new_tokens` is set it does not stop on `bad_words_ids`
             # for (i,tok) in enumerate(tokens):
-            #     text = self.tokenizer.decode([tok])
+            #     text = self.detokenize([tok])
             #     if text.find(stop) != -1:
             #         import json
             #         print(f'Warning: Token {tok} produces {json.dumps(text)} seen at idx={i} of len={len(tokens)}')

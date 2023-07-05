@@ -1,6 +1,6 @@
 
 from typing import Any, Dict, List, Tuple, Union, Optional, Callable, NamedTuple
-from .local import LocalLM
+from .choice import ChoiceLM
 
 try:
     import llama_cpp
@@ -8,7 +8,7 @@ except:
     llama_cpp = "Package `llama_cpp` needed for LLaMa wrapper (pip install git+https://github.com/tristanvdb/llama-cpp-python@choice-dev)"
     print(f"Warning: {llama_cpp}")
 
-class Llama(LocalLM):
+class Llama(ChoiceLM):
     @staticmethod
     def create(model_path:str, logits_all=True, verbose=False, n_ctx=2048):
         return { 'model' : llama_cpp.Llama(model_path=model_path, logits_all=logits_all, verbose=verbose, n_ctx=n_ctx) }

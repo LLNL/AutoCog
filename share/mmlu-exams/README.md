@@ -6,7 +6,9 @@ Multiple programs that let a LLM decide the best of 4 answers. Uses the MMLU dat
 At this time, the immediate goal is to figure out how to get **reliable** massive job with AutoCog.
 Specifically: figuring out SLURM configs to run on HPC clusters.
 
-## Clone and install AutoCog
+## Instructions
+
+### Clone and install AutoCog
 
 ```
 git clone https://github.com/LLNL/AutoCog $HOME/AutoCog
@@ -14,7 +16,7 @@ pip install -U ./AutoCog
 export AUTOCOG_LIB=$HOME/AutoCog/library
 ```
 
-## Download some models
+### Download some models
 
 ```
 sudo apt install git-lfs
@@ -25,15 +27,45 @@ git lfs clone https://huggingface.co/openlm-research/open_llama_7b $MODEL_PATH/m
 git lfs clone https://huggingface.co/openllmplayground/openalpaca_3b_600bt_preview $MODEL_PATH/openalpaca/3B
 ```
 
-### Convert for LLaMa.cpp
+#### Convert for LLaMa.cpp
 
 TODO
 
-## Download Dataset
+### Download Dataset
 
 TODO
 
-## Diagnostic
+## Tests
+
+Llama 7B with 4 bits quantization running 18 versions on 10 elementary maths/scieance questions:
+```
+python3 exam.py ./results versions.json llama-7B-q4.json elementary.json
+```
+It tooks 15h on an Xeon E5-2670:
+```
+  s_direct: 30.0% (total: 10, correct: 3, error: 7, failed: 0)
+  r_direct: 20.0% (total: 10, correct: 2, error: 8, failed: 0)
+  s_cot_3: 20.0% (total: 10, correct: 2, error: 8, failed: 0)
+  r_cot_3: 30.0% (total: 10, correct: 3, error: 7, failed: 0)
+  s_cot_5: 20.0% (total: 10, correct: 2, error: 8, failed: 0)
+  r_cot_5: 20.0% (total: 10, correct: 2, error: 8, failed: 0)
+  s_cot_10: 30.0% (total: 10, correct: 3, error: 7, failed: 0)
+  r_cot_10: 20.0% (total: 10, correct: 2, error: 8, failed: 0)
+  s_mapeval: 50.0% (total: 10, correct: 5, error: 5, failed: 0)
+  r_mapeval: 20.0% (total: 10, correct: 2, error: 8, failed: 0)
+  s_mapcot_3_3: 40.0% (total: 10, correct: 4, error: 6, failed: 0)
+  r_mapcot_3_3: 10.0% (total: 10, correct: 1, error: 9, failed: 0)
+  s_mapcot_3_5: 40.0% (total: 10, correct: 4, error: 6, failed: 0)
+  r_mapcot_3_5: 30.0% (total: 10, correct: 3, error: 7, failed: 0)
+  s_mapcot_5_3: 30.0% (total: 10, correct: 3, error: 7, failed: 0)
+  r_mapcot_5_3: 30.0% (total: 10, correct: 3, error: 7, failed: 0)
+  s_mapcot_5_5: 40.0% (total: 10, correct: 4, error: 6, failed: 0)
+  r_mapcot_5_5: 20.0% (total: 10, correct: 2, error: 8, failed: 0)
+```
+
+
+
+## Notes
 
 ### Llama.cpp
 

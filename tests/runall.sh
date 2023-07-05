@@ -6,9 +6,9 @@ export AUTOCOG_HOME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/.." &> /dev/nu
 tmpdir=$(mktemp -d -t autocog-tests-XXX)
 cd $tmpdir
 
-git clone $AUTOCOG_HOME autocog
+cp -r $AUTOCOG_HOME autocog
 pip install -r autocog/requirements.txt
-pip install autocog
+pip install ./autocog
 
 [ ! -z $OPENAI_API_KEY ] && pip install openai tiktoken
 [ ! -z $LLAMA_CPP_MODEL_PATH ] && pip install git+https://github.com/tristanvdb/llama-cpp-python@choice-dev

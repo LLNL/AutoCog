@@ -38,12 +38,12 @@ class OpenAI(LM):
                 delta *= self.growth
         raise Exception(f"Persisting RateLimitError when contacting OpenAI with {self.model} (retries={self.retries}, delta={self.delta}s, growth={self.growth}x)")
 
-    def encode(self, text:str):
+    def tokenize(self, text:str):
         if openai is None:
             raise Exception("Error: Package `openai` and `tiktoken` needed for OpenAI wrapper (`pip install openai tiktoken`)")
         return tiktoken.encoding_for_model(self.model).encode(text)
 
-    def decode(self, tokens:List[int]):
+    def detokenize(self, tokens:List[int]):
         if openai is None:
             raise Exception("Error: Package `openai` and `tiktoken` needed for OpenAI wrapper (`pip install openai tiktoken`)")
         return tiktoken.encoding_for_model(self.model).decode(tokens)
@@ -57,7 +57,7 @@ class OpenAI(LM):
                         max_tokens=self.max_tokens,
                         stop=stop,
                         temperature=self.temperature,
-                        logit_bias = { self.encode(s)[0] : w for (s,w) in self.complete_bias.items() }
+                        logit_bias = { self.tokenize(s)[0] : w for (s,w) in self.complete_bias.items() }
                 )
         assert len(res.choices) == 1
 
@@ -67,12 +67,12 @@ class OpenAI(LM):
         if openai is None:
             raise Exception("Error: Package `openai` and `tiktoken` needed for OpenAI wrapper (`pip install openai tiktoken`)")
 
-        tokens = [ self.encode(c) for c in choices ]
+        tokens = [ self.tokenize(c) for c in choices ]
         token_by_idx = list(zip(*tokens))
         same_tokens = list(map(lambda x: len(set(x)) == 1, token_by_idx))
         while len(same_tokens) > 0:
             while len(same_tokens) > 0 and same_tokens[0]:
-                prompt += self.decode([token_by_idx[0][0]])
+                prompt += self.detokenize([token_by_idx[0][0]])
                 same_tokens = same_tokens[1:]
                 token_by_idx = token_by_idx[1:]
             if len(same_tokens) == 0:
@@ -83,7 +83,7 @@ class OpenAI(LM):
 
             assert len(res.choices) == 1
             res = res.choices[0].text
-            tok = self.encode(res)
+            tok = self.tokenize(res)
             assert len(tok) == 1
             tok = tok[0]
             matches = [ c for (c,t) in enumerate(list(token_by_idx[0])) if tok == t ]

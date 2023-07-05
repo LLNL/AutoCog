@@ -1,6 +1,10 @@
 
+
+from typing import Any, Dict, List, Tuple, Union, Optional, Callable, NamedTuple
+
 import numpy
-from typing import List
+
+from .lm import LM, GreedyLM
 
 class TokenChoiceTree:
     def __init__(self, token=None, depth=0, parent=None):
@@ -18,13 +22,13 @@ class TokenChoiceTree:
         tree = self.children[tok]
         return tree if len(sequence) == 1 else tree.__add(sequence[1:])
 
-    def add(self, llm, text:str):
+    def add(self, llm:LM, text:str):
         return self.__add(llm.tokenize(text))
 
-    def decode(self, llm):
+    def decode(self, llm:LM):
         return '' if self.token is None else llm.detokenize([self.token])
 
-    def eval(self, llm, prompt):
+    def eval(self, llm:GreedyLM, prompt:str):
         if self.token is not None:
             prompt += self.decode(llm)
 
@@ -34,20 +38,20 @@ class TokenChoiceTree:
             tree.cumul = self.cumul * tree.proba
             tree.eval(llm, prompt)
 
-    def prob(self, use_path_length_normalization=False):
+    def prob(self, use_path_length_normalization:bool=False):
         if self.depth == 0 or self.cumul is None:
             return None
         return numpy.power(self.cumul, 1./self.depth) if use_path_length_normalization else self.cumul
 
     @classmethod
-    def run(cls, llm, prompt, texts, use_path_length_normalization=False, **kwargs):
+    def run(cls, llm:GreedyLM, prompt:str, texts:List[str], use_path_length_normalization:bool=False, **kwargs):
         tree = cls(**kwargs)
         leaves = [ tree.add(llm, t) for t in texts ]
         tree.eval(llm, prompt)
         return (tree, [ l.prob(use_path_length_normalization=use_path_length_normalization) for l in leaves ])
 
     @classmethod
-    def choose(cls, llm, prompt, texts, **kwargs):
+    def choose(cls, llm:GreedyLM, prompt:str, texts:List[str], **kwargs):
         return numpy.argmax(cls.run(llm, prompt, texts, **kwargs)[1])
 
     def depthfirst(self):
@@ -69,3 +73,9 @@ class TokenChoiceTree:
             if t.parent is not None:
                 dotstr += f'n_{t.parent.id} -> n_{t.id};'
         return dotstr
+
+class ChoiceLM(GreedyLM):
+    use_path_length_normalization:bool=False
+
+    def choose(self, prompt: str, choices: List[str]) -> int:
+        return TokenChoiceTree.choose(self, prompt=prompt, texts=choices, use_path_length_normalization=self.use_path_length_normalization)

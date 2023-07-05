@@ -4,8 +4,7 @@
 
 [ -z $LLAMA_CPP_MODEL_PATH ] && echo "\$LLAMA_CPP_MODEL_PATH must be set!" && exit 1
 
-python3 -m autocog "test-openai-0" \
-                   '{ "text" : { "cls" : "Llama", "model_path" : "'$LLAMA_CPP_MODEL_PATH'", "n_ctx" : 2048, "defaults" : { "max_tokens" : 20 } } }' \
-                   '{ "fortune" : [ "'$AUTOCOG_HOME'/library/fortune.sta", {} ] }' \
-                   '{}' \
-                   '[ [ "fortune", { "question" : "Is Eureka, CA a good place for a computer scientist who love nature?" } ] ]'
+python3 -m autocog --prefix "test-llama-0" --tee stdout \
+                   --lm '{ "text" : { "cls" : "LLaMa", "model" : { "model_path" : "'$LLAMA_CPP_MODEL_PATH'", "n_ctx" : 2048 }, "config" : { "max_tokens" : 20, "temperature" : 0.4 } } }' \
+                   --program '{ "fortune" : { "filepath" : "'$AUTOCOG_HOME'/library/fortune.sta" } }' \
+                   --command '{ "tag" : "fortune", "question" : "Is Eureka, CA a good place for a computer scientist who love nature?" }'

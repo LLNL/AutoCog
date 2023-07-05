@@ -1,5 +1,6 @@
 
 import os
+import sys
 import json
 import argparse
 
@@ -65,8 +66,10 @@ def parseargs(argv):
 
     pipe_kwargs = { 'prefix' : args.prefix }
     if args.tee is not None:
-        if args.tee == '-':
+        if args.tee == 'stdout':
             pipe_kwargs.update({ 'tee' : sys.stdout })
+        elif args.tee == 'stderr':
+            pipe_kwargs.update({ 'tee' : sys.stderr })
         else:
             pipe_kwargs.update({ 'tee' : open(args.tee,'w') })
 

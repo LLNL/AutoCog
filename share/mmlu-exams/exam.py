@@ -37,5 +37,5 @@ for model in models:
             num_correct = len(list(filter(lambda x: x is not None and x[-1], result)))
             num_error   = len(list(filter(lambda x: x is not None and not x[-1], result)))
             num_failed  = len(list(filter(lambda x: x is None, result)))
-            percentage  = int(num_correct * 10e4 / (num_correct+num_error))*10e-2
+            percentage  = int(num_correct * 1e4 / (num_correct+num_error))*1e-2
             print(f"  {version}: {percentage}% (total: {num_total}, correct: {num_correct}, error: {num_error}, failed: {num_failed})")

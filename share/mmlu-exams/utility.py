@@ -25,7 +25,7 @@ def mmlu_create_arch(library_path, patterns):
     return (arch, scorers)
 
 def mmlu_register_openai(arch, length, **kwargs):
-    arch.orchestrator.LMs.update({ k : OpenAI(completion_kwargs={ 'max_tokens' : l }, **kwargs) for (k,l) in length.items() })
+    arch.orchestrator.LMs.update({ k : OpenAI(max_tokens=l, **kwargs) for (k,l) in length.items() })
 
 def mmlu_register_tflm(arch, length, model_path='gpt2-medium', device='auto', **kwargs):
     model_kwargs = TfLM.create(model_path=model_path, device=device)
