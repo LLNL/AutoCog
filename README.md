@@ -110,6 +110,9 @@ Looking for way to tests the LLM on GitHub (don't want to expose an API key or m
 
 Contributions are welcome and encouraged!
 So far there is only one rule: **linear git history** (no merge commits).
+Only the master branch have stable commits, other branches might be rebased without notice.
+
+Version number will increase for each push to master and have a matching tag.
 
 ## License
 
