@@ -1,0 +1,20 @@
+{
+  "s_direct"     : [ "direct",  "select", {} ],
+  "r_direct"     : [ "direct",  "repeat", {} ],
+  "s_cot_3"      : [ "cot",     "select", { "N" : 3  } ],
+  "r_cot_3"      : [ "cot",     "repeat", { "N" : 3  } ],
+  "s_cot_5"      : [ "cot",     "select", { "N" : 5  } ],
+  "r_cot_5"      : [ "cot",     "repeat", { "N" : 5  } ],
+  "s_cot_10"     : [ "cot",     "select", { "N" : 10 } ],
+  "r_cot_10"     : [ "cot",     "repeat", { "N" : 10 } ],
+  "s_mapeval"    : [ "mapeval", "select", {} ],
+  "r_mapeval"    : [ "mapeval", "repeat", {} ],
+  "s_mapcot_3_3" : [ "mapcot",  "select", { "N" : 3, "M" : 3 } ],
+  "r_mapcot_3_3" : [ "mapcot",  "repeat", { "N" : 3, "M" : 3 } ],
+  "s_mapcot_3_5" : [ "mapcot",  "select", { "N" : 3, "M" : 5 } ],
+  "r_mapcot_3_5" : [ "mapcot",  "repeat", { "N" : 3, "M" : 5 } ],
+  "s_mapcot_5_3" : [ "mapcot",  "select", { "N" : 5, "M" : 3 } ],
+  "r_mapcot_5_3" : [ "mapcot",  "repeat", { "N" : 5, "M" : 3 } ],
+  "s_mapcot_5_5" : [ "mapcot",  "select", { "N" : 5, "M" : 5 } ],
+  "r_mapcot_5_5" : [ "mapcot",  "repeat", { "N" : 5, "M" : 5 } ]
+}

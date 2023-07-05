@@ -24,24 +24,19 @@ def mmlu_create_arch(library_path, patterns):
         scorers.update({ tag : mcq_checkers[mode] })
     return (arch, scorers)
 
-def mmlu_register_openai(arch, text_length=30, **kwargs):
-    arch.orchestrator.LMs.update({
-      'text' : OpenAI(completion_kwargs={ 'max_tokens' : text_length }, **kwargs)
-    })
+def mmlu_register_openai(arch, length, **kwargs):
+    arch.orchestrator.LMs.update({ k : OpenAI(completion_kwargs={ 'max_tokens' : l }, **kwargs) for (k,l) in length.items() })
 
-def mmlu_register_tflm(arch, text_length=30, model_path='gpt2-medium', device='auto', **kwargs):
+def mmlu_register_tflm(arch, length, model_path='gpt2-medium', device='auto', **kwargs):
     model_kwargs = TfLM.create(model_path=model_path, device=device)
-    arch.orchestrator.LMs.update({
-      'text' : TfLM(completion_kwargs={ 'max_new_tokens' : text_length }, **model_kwargs, **kwargs)
-    })
+    arch.orchestrator.LMs.update({ k : TfLM(completion_kwargs={ 'max_new_tokens' : l }, **model_kwargs, **kwargs) for (k,l) in length.items() })
 
-def mmlu_register_llama_cpp(arch, text_length=30, model_path='/workspace/models/llama/7B/ggml-model-q4_0.bin', n_ctx=2048, **kwargs):
+def mmlu_register_llama_cpp(arch, length, model_path='/workspace/models/llama/7B/ggml-model-q4_0.bin', n_ctx=2048, **kwargs):
     model_kwargs = Llama.create(model_path=model_path, n_ctx=n_ctx)
-    arch.orchestrator.LMs.update({
-      'text' : Llama(completion_kwargs={ 'max_tokens' : text_length }, **model_kwargs, **kwargs)
-    })
+    arch.orchestrator.LMs.update({ k : Llama(completion_kwargs={ 'max_tokens' : l }, **model_kwargs, **kwargs) for (k,l) in length.items() })
 
-def mmlu_register_local(arch, model, size=None, quant=None, use_path_length_normalization=False, text_length=30, model_basedir='/workspace/models', **kwargs):
+def mmlu_register_local(arch, model, length, size=None, quant=None, use_path_length_normalization=False, model_basedir='/workspace/models', **kwargs):
+    text_length = '-'.join([ str(l) for (k,l) in sorted(length.items(), key=lambda x: x[0]) ])
     if quant is None:
         mmlu_register = mmlu_register_tflm
         if size is None:
@@ -63,7 +58,7 @@ def mmlu_register_local(arch, model, size=None, quant=None, use_path_length_norm
     label = label.replace('/','_')
     if use_path_length_normalization:
         label += '-norm'
-    mmlu_register(arch, model_path=model_path, use_path_length_normalization=use_path_length_normalization, text_length=text_length, **kwargs)
+    mmlu_register(arch, model_path=model_path, use_path_length_normalization=use_path_length_normalization, length={ 'text' : 0, 'thought' : length['thought'], 'justification' : length['justification']}, **kwargs)
     return label
 
 def mmlu_data(dataset_path=None):

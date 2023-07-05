@@ -1,0 +1,3 @@
+[
+    { "model" : "llama", "size" : "7B", "quant" : "q4_0", "device" : "cpu", "length" : { "thought" : 50, "justification" : 100 } }
+]
