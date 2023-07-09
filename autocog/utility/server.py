@@ -6,9 +6,8 @@ from typing import Any, Dict, List, Tuple, Union, Optional, NamedTuple
 
 try:
     from quart import Quart, render_template, websocket
-    from quart_schema import QuartSchema, validate_request, validate_response
 except ModuleNotFoundError as e:
-    print("You must install `quart` and `quart_schema` to use AutoCog's server")
+    print("You must install `quart` to use AutoCog's server")
     raise e
 
 from ..config import version
@@ -19,7 +18,6 @@ app = Quart('autocog',
             static_folder=os.path.realpath('share/webapp/static'), # TODO install ressources with pip
             template_folder=os.path.realpath('share/webapp/templates') # TODO install ressources with pip
            )
-QuartSchema(app)
 
 arch = None
 
@@ -36,7 +34,6 @@ class RegisterInput:
     kwargs: Dict[str,Any]
 
 @app.post("/api/v0/register")
-@validate_request(RegisterInput)
 async def api_v0_register(data: RegisterInput):
     global arch
     assert arch is not None
@@ -49,7 +46,6 @@ class LoadInput:
     kwargs: Dict[str,Any]
 
 @app.post("/api/v0/load")
-@validate_request(LoadInput)
 async def api_v0_load(data: LoadInput):
     global arch
     assert arch is not None
@@ -61,7 +57,6 @@ class ExecuteInput:
     inputs: Dict[str,Any]
 
 @app.post("/api/v0/execute")
-@validate_request(ExecuteInput)
 async def api_v0_execute(data: ExecuteInput):
     global arch
     assert arch is not None
