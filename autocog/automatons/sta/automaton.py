@@ -150,7 +150,7 @@ class StructuredThoughtAutomaton(Automaton):
                 kwargs.update({k:v})
 
         reserved = [ 'automaton', 'prompt', 'mechanics', 'formats' ]
-        writable = [ 'prehamble', 'basics', 'mechs', 'fmts', 'postscriptum', 'header' ]
+        writable = [ 'preamble', 'basics', 'mechs', 'fmts', 'postscriptum', 'header' ]
 
         for r in reserved + writable:
             if r in kwargs:

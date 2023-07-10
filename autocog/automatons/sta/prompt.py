@@ -34,13 +34,13 @@ class StructuredThoughtPrompt(BaseModel):
     formats: Dict[str,Format] = {}
     parameters: List[str] = []
 
-    prehamble:    str = "You are a helpful AI assistant."
+    preamble:    str = "You are a helpful AI assistant."
     basics:       str = "You are using an interactive questionnaire."
     mechs:        str = "Follow this structure after the start prompt:"
     fmts:         str = "Each prompt expects one of the following formats:"
     postscriptum: str = "Terminate each prompt with a newline. Use as many statement with `thought` format as needed."
 
-    header: str = "{prehamble} {automaton} {prompt}\n{basics}\n{mechs}\n```\n{mechanics}```\n{fmts}\n{formats}\n{postscriptum}\n\nstart(record):\n"
+    header: str = "{preamble} {automaton} {prompt}\n{basics}\n{mechs}\n```\n{mechanics}```\n{fmts}\n{formats}\n{postscriptum}\n\nstart(record):\n"
 
     def toGraphViz(self):
         dotstr = 'ranksep=1;\n'
@@ -459,7 +459,7 @@ class StructuredThoughtPrompt(BaseModel):
             #     print(f"STs[{i}].content={st.content}")
 
         header = self.header.format(
-            prehamble=self.prehamble,
+            preamble=self.preamble,
             automaton=automaton_desc,
             prompt=self.desc,
             basics=self.basics,

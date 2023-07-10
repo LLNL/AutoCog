@@ -56,6 +56,7 @@ prompt(mmlu_annotate):
 - target(question)
 - target(hypothesis) prompt(mmlu_hypothesis)
 - target(candidate) source(choices) mapped
+> topic:
 > question:
 > hypothesis(thought):
 > candidate:
@@ -68,7 +69,9 @@ prompt(mmlu_choice):
 - target(question)
 - target(hypothesis) prompt(mmlu_hypothesis)
 - target(choices) prompt(mmlu_annotate) source(candidate,annotation)
+> topic:
 > question:
+> hypothesis(thought):
 > choices[4]:
 > > candidate:
 > > annotation(thought):
@@ -170,6 +173,11 @@ __next(tot_1,next):
 
 The application patterns yield 8 possible cases: `[hypo-][anno-](repeat|select)`.
 By default, each **prompt** is `inout` (ToT paper terminology), meaning that the LM provide the answer directly without any intermediate work.
+We have the following four base templates to represent combinations of the MCQ application patterns:
+ - [Choice](programs/choice.sta)
+ - [Hypothesis then Choice](programs/hyp-choice.sta)
+ - [Annotate then Choice](programs/anno-choice.sta)
+ - [Hypothesis then Annotate then Select](programs/hyp-anno-choice.sta)
 
 We use cognitive patterns to introduce intermediate thoughts.
 

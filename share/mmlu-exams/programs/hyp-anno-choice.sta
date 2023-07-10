@@ -1,0 +1,67 @@
+
+preamble: You are taking the MMLU Examination, a multiple choice questionnaire on a broad variety of subjects. For each question, you must pick the correct answer from four choices.
+basics: The following questionnaire present one question from the exam. As an expert in the domain, you will provide the best answer possible.
+
+##############################################################################
+
+entry(mmlu_hypothesis): {entry_desc}
+
+formats:
+- choice({choice_kind}=.choices.candidate): {choice_format}
+
+prompt(mmlu_hypothesis): {hypothesis_prompt_desc}
+- target(topic)
+- target(question)
+> topic: {topic_desc}
+> question: {question_desc}
+> hypothesis(thought): {hypothesis_desc}
+__next(mmlu_annotate):
+
+prompt(mmlu_annotate): {annotate_prompt_desc}
+- target(topic)
+- target(question)
+- target(hypothesis) prompt(mmlu_hypothesis)
+- target(candidate) source(choices) mapped
+> topic: {topic_desc}
+> question: {question_desc}
+> hypothesis(thought): {hypothesis_desc}
+> candidate: {candidate_desc}
+> correct(bool): {correct_desc}
+> annotation(thought): {annotation_desc}
+__next(mmlu_choice):
+
+prompt(mmlu_choice): {choice_prompt_desc}
+- target(topic)
+- target(question)
+- target(hypothesis) prompt(mmlu_hypothesis)
+- target(choices) prompt(mmlu_annotate) source(candidate,annotation)
+> topic: {topic_desc}
+> question: {question_desc}
+> hypothesis(thought): {hypothesis_desc}
+> choices[4]: {choices_desc}
+> > candidate: {candidate_desc}
+> > annotation(thought): {annotation_desc}
+> answer(choice): {answer_desc}
+__exit(answer):
+
+##############################################################################
+
+?choice_kind=select
+?choice_format=index of one of the four choices
+
+?entry_desc=Your method is to first evaluate each choice separately, then decide on the correct solution.
+
+?hypothesis_prompt_desc=Currently, you are coming up with a hypothesis as to what the answer could is.
+?annotate_prompt_desc=Currently, you are evaluating one of the choices. Is this candidate the correct answer to the question?
+?choice_prompt_desc=Now, you make a decision based on your previous evaluations.
+
+?topic_desc=the topic of the question
+?question_desc=a question from the MMLU exam
+?hypothesis_desc=an attempt at answering the question directly
+
+?candidate_desc=one of the possible answer
+?correct_desc=whether the candidate answers the question
+?annotation_desc=how does this candidate answer, or not, the questionwithout 
+
+?choices_desc=List of choices with annotations.
+?answer_desc=Which choice is correct?

@@ -1,0 +1,34 @@
+
+preamble: You are taking the MMLU Examination, a multiple choice questionnaire on a broad variety of subjects. For each question, you must pick the correct answer from four choices.
+basics: The following questionnaire present one question from the exam. As an expert in the domain, you will provide the best answer possible.
+
+##############################################################################
+
+entry(mmlu_choice): {entry_desc}
+
+formats:
+- choice({choice_kind}=.choices): {choice_format}
+
+prompt(mmlu_choice): {choice_prompt_desc}
+- target(topic)
+- target(question)
+- target(choices)
+> topic: {topic_desc}
+> question: {question_desc}
+> choices[4]: {choices_desc}
+> answer(choice): {answer_desc}
+__exit(answer):
+
+##############################################################################
+
+?choice_kind=select
+?choice_format=index of one of the four choices
+
+?entry_desc=
+
+?choice_prompt_desc=
+
+?topic_desc=the topic of the question
+?question_desc=a question from the MMLU exam
+?choices_desc=List of choices
+?answer_desc=Which choice is correct?
