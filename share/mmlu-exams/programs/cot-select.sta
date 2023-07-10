@@ -3,6 +3,7 @@ basics: The following questionnaire present one question from the exam. As an ex
 
 entry(mmlu_cot_select): Proceed step-by-step and show your work to make sure that you have the correct result.
 
+# TODO "choice(select=.choices):" and "enum=yes,Yes;No,NO"
 formats:
 - choice(enum=1,2,3,4): index of the correct answer in the list of choices
 
