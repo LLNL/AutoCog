@@ -482,11 +482,13 @@ class StructuredThoughtAutomaton(Automaton):
         for prompt in self.prompts.values():
             nexts.update({ prompt.stm.tag : prompt.formats['next'].copy(deep=True) })
 
+        scratch = { k[0] : v for (k,v) in inputs.items() if k[0] == '@' }
+        inputs  = { k    : v for (k,v) in inputs.items() if k[0] != '@' }
         stacks = { ptag : [] for ptag in self.prompts }
-        stacks.update({ '__inputs__' : [inputs] })
+        stacks.update({ '__inputs__' : inputs, '__scratch__' : scratch })
 
         path = []
-        current = self.prompts[self.entry]
+        current = self.prompts[scratch['entry'] if 'entry' in scratch else self.entry]
         while current != None:
             stacks[current.stm.tag].append(await current.execute(
                 fid=fid, stacks=stacks, orchestrator=self.orchestrator, automaton_desc=self.description, path=path
