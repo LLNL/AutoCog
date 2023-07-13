@@ -1,0 +1,17 @@
+{
+    "mmlu_preamble"          : "You are taking the MMLU Examination, a multiple choice questionnaire on a broad variety of subjects. For each question, you must pick the correct answer from four choices.",
+    "mmlu_basics"            : "The following questionnaire present one question from the exam. As an expert in the domain, you will provide the best answer possible.",
+    "choice_format"          : "index of one of the four choices",
+    "entry_desc"             : "Your method is to first evaluate each choice separately, then decide on the correct solution.",
+    "hypothesis_prompt_desc" : "Currently, you are coming up with a hypothesis as to what the answer could is.",
+    "annotate_prompt_desc"   : "Currently, you are evaluating one of the choices. Is this candidate the correct answer to the question?",
+    "choice_prompt_desc"     : "Now, you make a decision based on your previous evaluations.",
+    "topic_desc"             : "the topic of the question",
+    "question_desc"          : "a question from the MMLU exam",
+    "hypothesis_desc"        : "an attempt at answering the question directly",
+    "candidate_desc"         : "one of the possible answer",
+    "correct_desc"           : "whether the candidate answers the question",
+    "annotation_desc"        : "how does this candidate answer, or not, the questionwithout ",
+    "choices_desc"           : "List of choices with annotations.",
+    "answer_desc"            : "Which choice is correct?"
+}

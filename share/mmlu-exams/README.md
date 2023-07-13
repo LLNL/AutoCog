@@ -169,17 +169,18 @@ prompt(tot_2):
 __next(tot_1,next):
 ```
 
-### Nomenclature
+### Implementations
 
 The application patterns yield 8 possible cases: `[hypo-][anno-](repeat|select)`.
 By default, each **prompt** is `inout` (ToT paper terminology), meaning that the LM provide the answer directly without any intermediate work.
-We have the following four base templates to represent combinations of the MCQ application patterns:
- - [Choice](programs/choice.sta)
- - [Hypothesis then Choice](programs/hyp-choice.sta)
- - [Annotate then Choice](programs/anno-choice.sta)
- - [Hypothesis then Annotate then Select](programs/hyp-anno-choice.sta)
+Four combinations can be aranged using the MCQ application patterns: [choice](programs/choice.sta), [hyp-choice](programs/hyp-choice.sta), [anno-choice](programs/anno-choice.sta), and [hyp-anno-choice](programs/hyp-anno-choice.sta).
+In these files, we overuse the "macro" system to facilitate future tuning of the natural language parts of the program.
+It has the added advantage to centralize all NL piece in [one JSON file](programs/descriptions.json).
 
 We use cognitive patterns to introduce intermediate thoughts.
+We have implemented:
+ - [hyp-cot-anno-cot-choice-cot](programs/hyp-cot-anno-cot-choice-cot.sta) adding a simple Chain-of-Thoughts to each of the three prompts
+ - [anno-cot2-rot-choice-reflex](programs/hyp-cot2-rot-anno-cot-choice-reflex.sta) adding a simple Chain-of-Thoughts to each of the three prompts
 
 ## Instructions
 
