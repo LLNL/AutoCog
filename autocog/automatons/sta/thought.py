@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from enum import Enum
 
 from ..machine import VirtualState as BaseVS, ActualState as BaseAS, Instance, ParseState
+from ..channel import Step
 
 class VirtualState(BaseVS):
     path: List[int]       #
@@ -178,6 +179,42 @@ class StructuredThought(Instance):
         # print(f"vtag={vtag}")
         # print(f"data={data}")
         self.__write_content_rec(vtag, data, self.content, [])
+
+    def __write_path_rec(self, path:List[Step], content:Dict[str,Any], data:Any):
+        assert isinstance(content,dict)
+        assert len(path) > 0
+        if len(path) == 1:
+            assert path[0].key in content
+            if content[path[0].key] is None:
+                assert path[0].idx is None, "Index was provided but leaf is a dict not a list"
+                content.update({ path[0].key : data })
+            elif isinstance(content[path[0].key], list):
+                content = content[path[0].key]
+                assert path[0].idx < len(content), "Provided index is out of bounds"
+                assert content[path[0].idx] is None, "Trying to overide existing data."
+                content[path[0].idx] = data
+            elif path[0].idx is None and content[path[0].key] is not None:
+                raise Exception("Trying to overide existing data.")
+            else:
+                raise Exception("Should not happen...")
+        elif path[0].key in content:
+            content = content[path[0].key]
+            if isinstance(content, dict):
+                assert path[0].idx is None, "Index was provided but child is a dict not a list"
+                self.__write_path_rec(path[1:], content, data)
+            elif isinstance(content, list):
+                assert path[0].idx is not None, "Expect index to write a list"
+                assert path[0].idx < len(content), "Provided index is out of bounds"
+                self.__write_path_rec(path[1:], content[path[0].idx], data)
+            else:
+                raise Exception("Should not happen...")
+        else:
+            raise Exception("Should not happen...")
+
+    def write_path(self, path:List[Step], data:Any):
+        # print(f"path={path}")
+        # print(f"data={data}")
+        self.__write_path_rec(path, self.content, data)
 
     def fork(self, vtag:str, data:Any):
         res = self.copy(deep=True)

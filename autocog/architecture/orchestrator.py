@@ -6,8 +6,9 @@ import asyncio
 
 from ..cogs import Cog
 from ..lm.lm import LM
-from ..automatons.base import Automaton
-from ..automatons.machine import StateMachine, Instance
+from ..automatons.automaton import Automaton
+from ..automatons.machine import StateMachine
+from ..automatons.instance import Instance
 from .utility import PromptPipe
 
 class Frame(BaseModel):

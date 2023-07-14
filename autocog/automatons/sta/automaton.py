@@ -5,7 +5,8 @@ import asyncio
 
 import os, copy
 
-from ..base import Automaton, Text, Enum, Regex, Repeat, Record, ControlEdge
+from ..automaton import Automaton
+from ..format import Text, Enum, Regex, Repeat, Record, ControlEdge
 
 from ...architecture.orchestrator import Orchestrator
 
@@ -130,7 +131,7 @@ class StructuredThoughtAutomaton(Automaton):
                 raise Exception("")
             sta.outputs.append(( sta.prompts[ptag] , [ sta.prompts[ptag].stm.get_candidate_vstate(stag) for stag in stags ] ))
 
-        sta.inputs = list(set(sta.inputs))
+        #sta.inputs = list(set(sta.inputs))
         sta.externs = {} # TODO detect extern during compilation
 
         return sta
@@ -254,33 +255,16 @@ class StructuredThoughtAutomaton(Automaton):
 
                 assert key is not None
                 assert len(key) > 0
-                if key == 'prompt':
-                    value = list(map(lambda x: x.strip(), value.split(',')))
-                    channel.update({ key : value })
-                elif key == 'source':
-                    value = list(map(lambda x: x.strip(), value.split(',')))
-                    channel.update({ key : value })
-                elif key == 'mapped':
-                    if value is None:
-                        value = [[]]
-                    else:
-                        value = list(map(lambda x: None if x.strip() == '.' else x.strip().split('.')[1:], value.split(',')))
-                    channel.update({ key : value })
-                elif key == 'select':
-                    value = list(map(lambda x: x.strip(), value.split('.')[1:]))
+
+                if key == 'target' or key == 'source' or key == 'call':
                     channel.update({ key : value })
                 elif key == 'kwargs':
                     (k,v) = list(map(lambda x: x.strip(), value.split(',')))
-                    if not key in channel:
-                        channel.update({key:dict()})
-                    channel[key].update({ k : v })
-                elif value is None:
-                    if key.startswith("no-") or key.startswith("no_"):
-                        channel.update({ key[3:] : False })
-                    else:
-                        channel.update({ key : True })
+                    if not 'kwargs' in channel:
+                        channel.update({'kwargs':{}})
+                    channel['kwargs'].update({ k : v })
                 else:
-                    channel.update({ key : value })
+                    raise Exception(f"Unknow channel parameter: {key}")
 
             channels.append(channel)
             p += 1

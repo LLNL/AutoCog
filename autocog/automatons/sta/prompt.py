@@ -3,7 +3,9 @@ from abc import abstractmethod
 from pydantic import BaseModel
 import itertools
 
-from ..base import Format, Record
+from ..format import Format, Record
+from ..channel import Channel
+from ..port import Input
 from .thought import VirtualState
 from .machine import StructuredThoughtMachine
 from ...architecture.orchestrator import Orchestrator
@@ -13,20 +15,6 @@ class DataEdge(BaseModel):
     tgt: VirtualState
     src: Optional[Tuple[StructuredThoughtMachine,VirtualState]] = None
 
-class Channel(BaseModel):
-    # FIXME might want to split call, prompt, and input Channels
-    stm:    StructuredThoughtMachine
-    target: str
-    source: Optional[List[str]]       = None # alt. source name (default to `target`)
-    prompt: Optional[List[str]]       = None # if provided get data from latest instance of the most recently executed prompt
-
-    call:   Optional[str]             = None
-    kwargs: Optional[Dict[str,Any]]   = None
-
-    mapped: Optional[List[Optional[List[str]]]] = None
-    append: bool                      = False
-    select: Optional[List[str]]       = None
-
 class StructuredThoughtPrompt(BaseModel):
     stm:   StructuredThoughtMachine
     desc:  str
@@ -34,7 +22,7 @@ class StructuredThoughtPrompt(BaseModel):
     formats: Dict[str,Format] = {}
     parameters: List[str] = []
 
-    preamble:    str = "You are a helpful AI assistant."
+    preamble:     str = "You are a helpful AI assistant."
     basics:       str = "You are using an interactive questionnaire."
     mechs:        str = "Follow this structure after the start prompt:"
     fmts:         str = "Each prompt expects one of the following formats:"
@@ -106,26 +94,9 @@ class StructuredThoughtPrompt(BaseModel):
             raise Exception(f"State {desc['target']} seen more than once when adding channel the prompt {self.stm.tag}.")
         self.parameters.append(desc['target'])
 
-        channel = Channel(
-            stm=self.stm,
-            target=desc['target'],
-            source=desc['source'] if 'source' in desc else None,
-            prompt=desc['prompt'] if 'prompt' in desc else None,
-            call=desc['call'] if 'call' in desc else None,
-            kwargs={ key : stag for (key,stag) in desc['kwargs'].items() } if 'kwargs' in desc else {},
-            mapped=desc['mapped'] if 'mapped' in desc else None,
-            append=desc['append'] if 'append' in desc else False,
-            select=desc['select'] if 'select' in desc else None
-        )
+        channel = Channel( machine=self.stm, **desc )
         self.channels.append(channel)
-        
-        inputs = []
-        if channel.prompt is None:
-            if channel.source is None:
-                inputs.append(channel.target)
-            else:
-                inputs += channel.source
-        return inputs
+        return [ src for src in channel.source if isinstance(src, Input) ]
 
     def __visible_states(self):
         states_by_labels = { stag : [] for stag in set(map(lambda x: x.split('.')[0], self.stm.states.keys())) }
@@ -317,19 +288,7 @@ class StructuredThoughtPrompt(BaseModel):
 
         # import json
         # print(f"data={json.dumps(data, indent=4)}")
-        if channel.mapped is not None:
-            # print(f"channel.mapped={channel.mapped}")
-            if not isinstance(data,list):
-                data = [data]
-            for path in channel.mapped:
-                # print(f"path={path}")
-                if path is None:
-                    continue
-                data = self.__ravel_mapped_path_rec(data, path)
-                # print(f"data={json.dumps(data, indent=4)}")
-            counts[tgt_stag] = ( 1, True )
-            data = [ { 'data' : d } for d in data ]
-        elif counts[tgt_stag][0] is None:
+        if counts[tgt_stag][0] is None:
             if not isinstance(data,list):
                 data = [data]
             counts[tgt_stag] = ( len(data), True )
@@ -337,14 +296,6 @@ class StructuredThoughtPrompt(BaseModel):
         else:
             counts[tgt_stag] = ( 1, True )
             data = { 'data' : data }
-
-        if channel.select is not None:
-            if isinstance(data,list):
-                raise NotImplementedError("select mapped data")
-            else:
-                assert isinstance(data,dict) and isinstance(data['data'],list)
-                assert len(channel.select) == 1
-                data = { 'data' : [ d for d in data['data'] if d[channel.select[0]] ] }
 
         if isinstance(data,list):
             data_ = []
@@ -374,30 +325,19 @@ class StructuredThoughtPrompt(BaseModel):
         jobs = []
         for channel in self.channels:
             if channel.call is None:
-                src_vtags = [ channel.target ] if channel.source is None else channel.source
+                src_vtags = channel.source
                 datas = []
                 for src_vtag in src_vtags:
                     data = self.__channel_data(channel.prompt, src_vtag, stacks, path)
-                    if channel.append:
-                        base = self.__channel_data(self.stm.tag, channel.target, stacks, path)
-                        if base is None:
-                            base = []
-                        elif isinstance(base,str) or isinstance(base,bool) or isinstance(base,int) or isinstance(base,float) or isinstance(base,dict):
-                            base = [base]
-                        assert isinstance(base, list), f"base={base}"
-                        if data is not None:
-                            base += data
-                        data = base
-                    else:
-                        if data is None:
-                            print(f"self.stm.tag={self.stm.tag}")
-                            print(f"channel.target={channel.target}")
-                            print(f"channel.source={channel.source}")
-                            print(f"channel.prompt={channel.prompt}")
-                            print(f"src_vtag={src_vtag}")
-                            print(f"path={path}")
-                            print(f"stacks={stacks}")
-                        assert data is not None, f"channel={channel}\n\nsrc_vtag={src_vtag}"
+                    if data is None:
+                        print(f"self.stm.tag={self.stm.tag}")
+                        print(f"channel.target={channel.target}")
+                        print(f"channel.source={channel.source}")
+                        print(f"channel.prompt={channel.prompt}")
+                        print(f"src_vtag={src_vtag}")
+                        print(f"path={path}")
+                        print(f"stacks={stacks}")
+                    assert data is not None, f"channel={channel}\n\nsrc_vtag={src_vtag}"
 
                     if isinstance(data,str) or isinstance(data,bool) or isinstance(data,int) or isinstance(data,float) or isinstance(data,dict):
                         data = [data]
@@ -407,7 +347,7 @@ class StructuredThoughtPrompt(BaseModel):
                     data = datas[0]
                 else:
                     # print(f"datas={datas}")
-                    data = [ { k:v for (k,v) in zip(src_vtags,row) } for row in zip(*datas) ]
+                    data = [ { k:v for (k,v) in zip(channel.source,row) } for row in zip(*datas) ]
                 self.__channel_load(channel, data, vtag_to_stag, counts, stash)
             else:
                 kwargs = self.__channel_kwargs(channel, stacks, path)

@@ -3,15 +3,14 @@ from typing import Any, Dict, List, Tuple, Optional, NamedTuple
 from abc import abstractmethod
 from pydantic import BaseModel
 
-from .base import Text, Choice, Enum, Repeat, ControlEdge, Regex, Record
+from .instance import Instance
+from .format import Text, Choice, Enum, Repeat, ControlEdge, Regex, Record
 
-# TODO clean-up the whole enumerator thingy...
 import enum
-from ..utility.enums import a_enumerator
 class ParseState(enum.Enum):
-    start   = a_enumerator(tag='start',   desc='')
-    content = a_enumerator(tag='content', desc='')
-    ready   = a_enumerator(tag='ready',   desc='')
+    start=1
+    content=2
+    ready=3
 
 class VirtualState(BaseModel):
     label: str            # 
@@ -35,54 +34,6 @@ class Expectations(BaseModel):
 
     def args(self):
         return [self.vstate,self.idx]
-
-class Instance(BaseModel):
-    prompt: str = ''
-    idx: int = 0
-
-    next: Optional[str] = None
-
-    started: bool = False
-
-    @abstractmethod
-    def vstate(self):
-        """"""
-
-    @abstractmethod
-    def need_prompt(self):
-        """"""
-
-    @abstractmethod
-    def need_content(self):
-        """"""
-
-    @abstractmethod
-    def build_astate(self):
-        """"""
-
-    @abstractmethod
-    def astate(self):
-        """"""
-
-    @abstractmethod
-    def get_content(self):
-        """"""
-
-    @abstractmethod
-    def set_content(self):
-        """"""
-
-    @abstractmethod
-    def known_choice(self):
-        """"""
-
-    @abstractmethod
-    def write_content(self):
-        """"""
-
-    @abstractmethod
-    def fork(self):
-        """"""
 
 class StateMachine(BaseModel):
     tag:         str = ''

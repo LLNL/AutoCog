@@ -26,14 +26,25 @@ class CognitiveArchitecture(BaseModel):
         self.cogs.update({cog.tag:cog})
         self.orchestrator.cogs.update({cog.tag:cog})
 
-    def load(self, tag:str, filepath:str, **kwargs):
-        if filepath.endswith('.sta'):
+    def load(self, tag:str, filepath:Optional[str]=None, program:Optional[str]=None, language:Optional[str]=None, **kwargs):
+        if program is None:
+            assert filepath is not None
+            ext = filepath.split('.')[-1]
+            if language is None:
+                language = ext
+            else:
+                assert language == ext
             with open(filepath, 'r') as F:
                 program = F.read()
+        else:
+            assert filepath is None
+            if language is None:
+                raise Exception("Must specify `language`")
+        if language == 'sta':
             (program,config) = STA.parse(program=program, **kwargs)
             cog = STA.compile(tag=tag, config=config, orchestrator=self.orchestrator, **program)
         else:
-            raise Exception(f"Unrecognized file extension: {filepath}")
+            raise Exception(f"Unrecognized file language: {language}")
         self.register(cog)
         return cog
     
