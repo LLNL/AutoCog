@@ -49,7 +49,7 @@ class Orchestrator(BaseModel):
     def callback(self, fid, result):
         frame = self.frames[fid]
         if issubclass(self.cogs[frame.ctag].__class__, Automaton):
-            frame.stacks = result[1]
+            frame.stacks = { key : stack if key.startswith('__') else [ st.content for st in stack ] for (key,stack) in  result[1].items() }
             return result[0]
         else:
             return result
@@ -64,7 +64,7 @@ class Orchestrator(BaseModel):
 
 class Serial(Orchestrator):
     async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0):
-        return [ Orchestrator.callback(self, fid, await coro) for (fid, coro) in super().coroframe(jobs, pid) ]
+        return [ ( Orchestrator.callback(self, fid, await coro), fid ) for (fid, coro) in super().coroframe(jobs, pid) ]
 
     async def prompt(self, fid:int, machine:StateMachine, instances:Instance, header:str, formats:Dict):
         return [ await coro for coro in super().prompt(fid, machine, instances, header, formats) ]
@@ -73,7 +73,7 @@ class Async(Orchestrator):
     async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0):
         (fids, coros) = zip(*[ (fid, coro) for (fid, coro) in super().coroframe(jobs, pid) ])
         results = await asyncio.gather(*coros)
-        return [ Orchestrator.callback(self, fid, result) for (fid, result) in zip(fids, results) ]
+        return [ ( Orchestrator.callback(self, fid, result), fid ) for (fid, result) in zip(fids, results) ]
 
     async def prompt(self, fid:int, machine:StateMachine, instances:Instance, header:str, formats:Dict):
         return await asyncio.gather(*super().prompt(fid, machine, instances, header, formats))

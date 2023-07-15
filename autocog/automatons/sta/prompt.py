@@ -115,7 +115,13 @@ class StructuredThoughtPrompt(BaseModel):
 
         channel = Channel( machine=self.stm, **desc )
         self.channels.append(channel)
-        return [ src for src in channel.source if isinstance(src, Input) ]
+        inputs = []
+        if isinstance(channel.source, Input):
+            inputs.append(channel.source)
+        for port in channel.kwargs:
+            if isinstance(port, Input):
+                inputs.append(port)
+        return [ channel.source ] if isinstance(channel.source, Input) else []
 
     def __visible_states(self):
         states_by_labels = { stag : [] for stag in set(map(lambda x: x.split('.')[0], self.stm.states.keys())) }
@@ -353,6 +359,7 @@ class StructuredThoughtPrompt(BaseModel):
         if len(calls) > 0:
             retvals = await orchestrator.execute(jobs=jobs, pid=fid)
             for (c,idx,num) in calls:
+                raise NotImplementedError() # TODO save FIDs
                 datas[c] = retvals[idx] if num == 1 else retvals[idx:idx+num]
 
         path_to_stag_vs = { vs.p() : (stag,vs) for (stag,vs) in self.stm.states.items() }

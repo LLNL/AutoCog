@@ -50,7 +50,8 @@ class StructuredThoughtMachine(StateMachine):
         elif len(path) == 0:
             return self.tag + '_root'
         else:
-            return "{}_{}".format(self.tag, '_'.join(map(str,path)))
+            
+            return "{}_{}".format(self.tag, '_'.join(map(lambda x: str(x[0]),path)))
 
     def toGraphViz(self):
         max_depth = 0
@@ -76,7 +77,7 @@ class StructuredThoughtMachine(StateMachine):
                 label += f'{s.fmt}'
                 if s.max_count > 0:
                     label += f'[{s.max_count}]'
-                label += f'\\n{s.path}'
+                label += f"\\n{'.'.join(map(lambda x: str(x[0]), s.path))}"
 
                 dotstr += f'  {self.gv_state_tag(state=s)} [label="{label}", shape=rectangle];\n'
 

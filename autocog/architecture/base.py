@@ -49,7 +49,7 @@ class CognitiveArchitecture(BaseModel):
         return cog
     
     async def __call__(self, tag:str, **inputs):
-        return (await self.orchestrator.execute(jobs=[ (tag,inputs) ], pid=0))[0]
+        return (await self.orchestrator.execute(jobs=[ (tag,inputs) ], pid=0))[0][0]
 
     async def run(self, commands):
         jobs = []

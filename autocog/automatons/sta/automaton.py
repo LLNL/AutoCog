@@ -7,6 +7,7 @@ import os, copy
 
 from ..automaton import Automaton
 from ..format import Text, Enum, Regex, Repeat, Record, ControlEdge
+from ..port import Input
 
 from ...architecture.orchestrator import Orchestrator
 
@@ -388,74 +389,34 @@ class StructuredThoughtAutomaton(Automaton):
 
         dotstr += "subgraph cluster_" + self.tag.replace('-','_') + "_inputs {\n"
         for i in self.inputs:
-            dotstr += f"  {self.tag.replace('-','_')}_input_{i} [label=\"{i}\", shape=\"octagon\"]\n"
+            in_tag = f"{self.tag}_input_{i.key.path(True)}".replace('-','_').replace('[','_').replace(']','_').replace('.','_')
+            dotstr += f"  {in_tag} [label=\"{i.key.path(True)}\", shape=\"octagon\"]\n"
         dotstr += "}\n"
         
         for (ptag,prompt) in self.prompts.items():
             dotstr += "subgraph cluster_" + self.tag.replace('-','_') + "_" + ptag + " {\n"
-            chn_tags = []
-            for (c,channel) in enumerate(prompt.channels):
-                chn_tag = f"channel_{ptag}_{c}"
-                chn_tags.append(chn_tag)
-                shape = 'box3d' if channel.call is not None else 'cylinder'
-                chn_lbl = 'Cog' if channel.call is not None else 'Copy'
-                if channel.mapped:
-                    chn_lbl += '\\n(mapped)'
-                dotstr += f'  {chn_tag} [label="{chn_lbl}",shape="{shape}"];\n'
-            dotstr += "  {rank = same; " + '; '.join(chn_tags) +  ";}\n"
             dotstr += prompt.stm.toGraphViz() + "\n"
             dotstr += "}\n"
-
-        dotstr += "subgraph cluster_outputs {\n"
-        for (stm,vss) in self.outputs:
-            for vs in vss:
-                dotstr += f"  output_{vs.label} [label=\"{vs.label}\", shape=\"octagon\"]\n"
-        dotstr += "}\n"
 
         for (ptag,prompt) in self.prompts.items():
                 for ntag in prompt.formats['next'].choices:
                     dotstr += f"  {ptag}_exit -> {ntag}_root [constraint=True];\n"
         dotstr += f"  {self.tag.replace('-','_')}_entry -> {self.entry}_root [constraint=True];\n"
 
+        path_to_vs = { ptag : { vs.p() : vs for (stag,vs) in prompt.stm.states.items() } for (ptag,prompt) in self.prompts.items() }
         for (ptag,prompt) in self.prompts.items():
             for (c,channel) in enumerate(prompt.channels):
-                chn_tag = f"channel_{ptag}_{c}"
-                if channel.prompt is not None:
-                    # Internal move
-                    for p in channel.prompt:
-                        dotstr += f"  {p}_exit -> {chn_tag} [constraint=True, style=\"invis\"];\n"
-                    dotstr += f"  {chn_tag} -> {ptag}_root [constraint=True, style=\"invis\"];\n"
-                    
-#                    for df in channel.dfs:
-#                        src_tag = df.src[0].gv_state_tag(state=df.src[1])
-#                        tgt_tag = df.stm.gv_state_tag(state=df.tgt)
-#                        dotstr += f"  {src_tag} -> {chn_tag} [constraint=False, style=\"dashed\"];\n"
-#                        dotstr += f"  {chn_tag} -> {tgt_tag} [constraint=False, style=\"dashed\"];\n"
+                tgt_tag = prompt.stm.gv_state_tag(state=path_to_vs[prompt.stm.tag][channel.target.path()])
+                if channel.source is not None:
+                    if isinstance(channel.source, Input):
+                        src_tag = f"{self.tag}_input_{channel.source.key.path(True)}".replace('-','_').replace('[','_').replace(']','_').replace('.','_')
+                    else:
+                        src_tag = self.prompts[channel.source.tag].stm.gv_state_tag(state=path_to_vs[channel.source.tag][channel.source.path.path()])
                 elif channel.call is not None:
-                    # External Cog
-                    dotstr += f"  {chn_tag} -> {ptag}_root [constraint=True, style=\"invis\"];\n"
-#                    for df in channel.dfs:
-#                        tgt_tag = df.stm.gv_state_tag(state=df.tgt)
-#                        dotstr += f"  {chn_tag} -> {tgt_tag} [constraint=False, style=\"dashed\"];\n"
-#                    for (k,vs) in channel.kwargs.items():
-#                        src_tag = df.stm.gv_state_tag(state=vs)
-#                        dotstr += f"  {src_tag} -> {chn_tag} [constraint=False, style=\"dashed\"];\n"
+                    raise NotImplementedError() # TODO
                 else:
-                    # Inputs
-                    dotstr += f"  {chn_tag} -> {ptag}_root [constraint=True, style=\"invis\"];\n"
-#                    for df in channel.dfs:
-#                        assert df.src is None
-#                        src_tag = f"{self.tag}_input_{df.tgt.label}"
-#                        tgt_tag = df.stm.gv_state_tag(state=df.tgt)
-#                        dotstr += f"  {src_tag} -> {chn_tag} [constraint=False, style=\"dashed\"];\n"
-#                        dotstr += f"  {chn_tag} -> {tgt_tag} [constraint=False, style=\"dashed\"];\n"
-
-        for (prompt,vss) in self.outputs:
-            for vs in vss:
-                src_tag = prompt.stm.gv_state_tag(state=vs)
-                tgt_tag = f"output_{vs.label}"
-                dotstr += f"  {prompt.stm.tag}_exit -> {tgt_tag} [constraint=True, style=\"invis\"];\n"
-                dotstr += f"  {src_tag} -> {tgt_tag} [constraint=False, style=\"dashed\"];\n"
+                    raise Exception("Should not happen")
+                dotstr += f"  {src_tag} -> {tgt_tag} [constraint=False, style=dashed];\n"
 
         return dotstr
 

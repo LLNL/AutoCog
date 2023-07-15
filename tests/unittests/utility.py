@@ -35,7 +35,7 @@ async def run_sample(arch:CogArch, sample:str, **inputs):
         'inputs' : inputs,
         'output' : res,
         'prompts' : arch.orchestrator.pipe.output.getvalue(),
-        'exectrace' : None # from stacks to list of (stm.tag + st.content + st.counts)
+        'exectrace' : None # TODO frames -> traces
     }
 
 def print_sample(arch:CogArch, sample:str, inputs, output, prompts, exectrace):
