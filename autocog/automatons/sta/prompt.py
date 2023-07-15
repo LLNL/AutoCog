@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import itertools
 
 from ..format import Format, Record
+from ..instance import Instance
 from ..channel import Channel
 from ..port import Input
 from .thought import VirtualState
@@ -47,7 +48,7 @@ class StructuredThoughtPrompt(BaseModel):
             # print(f"    previous = {previous}")
             if label.find('.') != -1:
                 raise Exception("State label cannot contain '.' only letters, digits, and underscore.")
-            stag = "{}.{}".format(label,'.'.join(map(str,path)))
+            stag = "{}.{}".format(label,'.'.join(map(lambda x: str(x[0]),path)))
             vstate = VirtualState(label=label, path=path, **data)
             self.stm.add_state(stag, vstate)
             if vstate.fmt != 'record' and vstate.max_count > 0:
@@ -79,6 +80,24 @@ class StructuredThoughtPrompt(BaseModel):
             if self.stm.states[stack[-d]].max_count > 0:
                 self.stm.transitions[previous].update({ stack[-d] : -d })
         self.stm.transitions[previous].update({ "exit" : delta })
+
+        # Add a skip edge for list that can be empty
+        for (stag,vs) in self.stm.states.items():
+            is_list = vs.max_count > 0    # FIXME
+            list_range = (0,vs.max_count) # FIXME
+            if not is_list or list_range[0] > 0:
+                continue
+            for (src,tgts) in self.stm.transitions.items():
+                if src == stag or not stag in tgts:
+                    continue
+                delta = tgts[stag]
+                for (tgt,delta_) in self.stm.transitions[stag].items():
+                    if tgt == stag or tgt == src:
+                        continue
+                    if tgt in self.stm.transitions[src]:
+                        assert self.stm.transitions[src][tgt] == delta + delta_
+                    else:
+                        self.stm.transitions[src].update({ tgt : delta + delta_ })
 
     @classmethod
     def create(cls, ptag:str, desc:str, stmts:List[Dict], **config):
@@ -317,86 +336,48 @@ class StructuredThoughtPrompt(BaseModel):
 
         stash.update({ channel.target : data })
         
-    async def execute(self, fid:int, orchestrator:Orchestrator, stacks: Dict[str,Any], path:List[str], automaton_desc:str=''):
-        (vtag_to_stag, parent_by_vtag, children_by_vtag) = self.__visible_states()
-        counts = { vtag : ( None if vs.max_count > 0 else 1, False ) for (vtag,vs) in self.stm.states.items() }
-        stash = {}
+    async def execute(self, fid:int, orchestrator:Orchestrator, stacks: Dict[str,List[Instance]], path:List[str], automaton_desc:str=''):
+        datas = [ None for c in self.channels ]
         calls = []
         jobs = []
-        for channel in self.channels:
+        for (c,channel) in enumerate(self.channels):
             if channel.call is None:
-                src_vtags = channel.source
-                datas = []
-                for src_vtag in src_vtags:
-                    data = self.__channel_data(channel.prompt, src_vtag, stacks, path)
-                    if data is None:
-                        print(f"self.stm.tag={self.stm.tag}")
-                        print(f"channel.target={channel.target}")
-                        print(f"channel.source={channel.source}")
-                        print(f"channel.prompt={channel.prompt}")
-                        print(f"src_vtag={src_vtag}")
-                        print(f"path={path}")
-                        print(f"stacks={stacks}")
-                    assert data is not None, f"channel={channel}\n\nsrc_vtag={src_vtag}"
-
-                    if isinstance(data,str) or isinstance(data,bool) or isinstance(data,int) or isinstance(data,float) or isinstance(data,dict):
-                        data = [data]
-                    datas.append(data)
-
-                if len(datas) == 1:
-                    data = datas[0]
-                else:
-                    # print(f"datas={datas}")
-                    data = [ { k:v for (k,v) in zip(channel.source,row) } for row in zip(*datas) ]
-                self.__channel_load(channel, data, vtag_to_stag, counts, stash)
+                assert not channel.source.mapped
+                datas[c] = channel.source.retrieve(curr=self.stm.tag, stacks=stacks)
             else:
-                kwargs = self.__channel_kwargs(channel, stacks, path)
-                calls.append(( channel, len(jobs), len(kwargs) ))
+                raise NotImplementedError()
+                kwargs = [{}] # TODO self.__channel_kwargs(channel, stacks, path)
+                calls.append(( c, len(jobs), len(kwargs) ))
                 jobs += [ (channel.call, kw) for kw in kwargs ]
 
         if len(calls) > 0:
             retvals = await orchestrator.execute(jobs=jobs, pid=fid)
-            for (channel,idx,num) in calls:
-                if num == 1:
-                    data = retvals[idx]
-                else:
-                    data = retvals[idx:idx+num]
-                    assert all([ isinstance(d,list) for d in data ])
-                    data = [ d_ for d in data for d_ in d ]
-                self.__channel_load(channel, data, vtag_to_stag, counts, stash)
+            for (c,idx,num) in calls:
+                datas[c] = retvals[idx] if num == 1 else retvals[idx:idx+num]
 
-        # print(f"counts={counts}")
-        # print(f"stash={stash}")
-        needed = self.__needed_from_counts(counts, parent_by_vtag, vtag_to_stag)
-        # print(f"needed={needed}")
+        path_to_stag_vs = { vs.p() : (stag,vs) for (stag,vs) in self.stm.states.items() }
+        st = self.stm.init()
+        for (c,channel) in enumerate(self.channels):
+            (stag,vs) = path_to_stag_vs[channel.target.path()]
 
-        st = self.stm.init(counts)
-        self.__fill_content_skeleton_rec(vtag=self.stm.tag, content=st.content, counts=counts, needed=needed, vtag_to_stag=vtag_to_stag, children_by_vtag=children_by_vtag)
-        # print(f"st.content={st.content}")
-        
-        STs = [ st ]
-        # for (i,st) in enumerate(STs):
-        #     print(f"STs[{i}].content={st.content}")
-        for (vtag,data) in stash.items():
-            # print(f"vtag={vtag}")
-            # print(f"data={data}")
-            if isinstance(data,list) and len(data) > 0:
-                sts = []
-                for ST in STs:
-                    for d in data:
-                        res = ST.copy(deep=True)
-                        res.write_content(vtag, **d)
-                        sts.append(res)
-                STs = sts
-            elif isinstance(data,list):
-                pass # FIXME?
-            elif isinstance(data,dict):
-                for ST in STs:
-                    ST.write_content(vtag, **data)
+            is_list    = vs.max_count > 0 # FIXME
+            list_range = (0,vs.max_count) # FIXME
+            data = datas[c]
+            if data is None:
+                assert is_list and list_range[0] == 0
+                st.counts.update({ stag : 0 })
+                continue
+            if is_list:
+                assert isinstance(data,list)
+                n = len(data)
+                assert n >= list_range[0]
+                assert n <= list_range[1]
+                st.counts.update({ stag : n })
             else:
-                raise Exception("This should not happen...")
-            # for (i,st) in enumerate(STs):
-            #     print(f"STs[{i}].content={st.content}")
+                assert not isinstance(data,list), f"channel={channel} data={data}"
+                st.counts.update({ stag : None })
+            st.write_path(path=channel.target.steps, data=data)
+        # print(f"counts={st.counts}")
 
         header = self.header.format(
             preamble=self.preamble,
@@ -409,4 +390,8 @@ class StructuredThoughtPrompt(BaseModel):
             formats='\n'.join([ f"- {k}: {v.desc}" for (k,v) in self.formats.items() if k != 'next' or len(v.choices) > 1 ]),
             postscriptum=self.postscriptum
         )
-        return await orchestrator.prompt(fid=fid, machine=self.stm, instances=STs, header=header, formats=self.formats)
+        return await self.stm.execute(
+            instance=st, LMs=orchestrator.LMs, header=header, formats=self.formats,
+            out=None if orchestrator.pipe is None else orchestrator.pipe.set(tag=self.stm.tag, idx=0),
+            limit=orchestrator.limit,
+        )

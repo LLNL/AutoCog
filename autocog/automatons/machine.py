@@ -74,7 +74,9 @@ class StateMachine(BaseModel):
                 raise Exception("No expectation!")
             choice = 0 if len(expected) == 1 else instance.known_choice(expected)
             if isinstance(choice, list):
-                choice = LMs['text'].choose(prompt=header+instance.prompt, choices=[ expected[c].prompt for c in choice ])
+                choices = [ expected[c].prompt for c in choice ]
+                c = LMs['text'].choose(prompt=header+instance.prompt, choices=choices)
+                choice = choice[c]
 
             if expected[choice].vstate.label == 'exit':
                 choices = [ c for (c,l) in zip(formats['next'].choices, formats['next'].limits) if l is None or l > 0 ]

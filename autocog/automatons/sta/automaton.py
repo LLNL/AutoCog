@@ -317,14 +317,15 @@ class StructuredThoughtAutomaton(Automaton):
         path = []
         for s in range(len(stmts)):
             ( depth, label, max_count, fmt, desc ) = stmts[s]
+            # print(f"depth={depth} label={label}")
             if len(path) < depth:
                 assert depth - len(path) == 1, "Can only stack one at the time"
-                path.append(0)
+                path.append( (0, label) )
             elif len(path) > depth:
                 path = path[:depth]
-                path[-1] += 1
+                path[-1] = ( path[-1][0]+1, label )
             else:
-                path[-1] += 1
+                path[-1] = ( path[-1][0]+1, label )
 
             if fmt is None and ( (s == len(stmts) - 1) or stmts[s+1][0] <= depth ):
                 fmt = 'text'
@@ -333,7 +334,6 @@ class StructuredThoughtAutomaton(Automaton):
                 fmt = 'record'
 
             stmts[s] = ( label, copy.deepcopy(path), { 'max_count' : max_count, 'fmt' : fmt, 'desc' : desc } )
-
         return (stmts, p)
 
     @classmethod
@@ -478,19 +478,15 @@ class StructuredThoughtAutomaton(Automaton):
                 fid=fid, stacks=stacks, orchestrator=self.orchestrator, automaton_desc=self.description, path=path
             ))
             path.append(current.stm.tag)
-            # print(f"len(stacks[current.stm.tag][-1])={len(stacks[current.stm.tag][-1])}")
-            current = list(set([ st.next for st in stacks[current.stm.tag][-1] ]))
-            assert len(current) == 1, f"current={current}"
-            current = current[0]
+            # print(f"stacks[current.stm.tag][-1]={stacks[current.stm.tag][-1]}")
+            current = stacks[current.stm.tag][-1].next
             if current is not None:
                 current = self.prompts[current]
 
         result = {}
         for (prompt,vss) in self.outputs:
             for vs in vss:
-                res = []
-                for st in stacks[prompt.stm.tag][-1]:
-                    res += st.ravel(vs.label)
+                res = stacks[prompt.stm.tag][-1].ravel(vs.label)
                 if len(res) == 1:
                     res = res[0]
                 result.update({ vs.label : res})

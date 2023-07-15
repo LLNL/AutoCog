@@ -5,10 +5,10 @@ from pydantic import BaseModel
 from enum import Enum
 
 from ..machine import VirtualState as BaseVS, ActualState as BaseAS, Instance, ParseState
-from ..channel import Step
+from ..base import Step
 
 class VirtualState(BaseVS):
-    path: List[int]       #
+    path: List[Tuple[int,str]]       #
     max_count: int = 0    # scalar state if zero else max sequence length
 
     def tag(self, ptag:Optional[str]=None):
@@ -16,7 +16,10 @@ class VirtualState(BaseVS):
             ptag = self.label
         if len(self.path) == 0:
             return ptag
-        return "{}.{}".format(ptag, '.'.join(map(str,self.path)))
+        return "{}.{}".format(ptag, '.'.join(map(lambda x: str(x[0]),self.path)))
+
+    def p(self):
+        return '.'.join(map(lambda x: str(x[1]),self.path))
 
 class ActualState(BaseAS):
     children: List[Any] = []
@@ -24,7 +27,7 @@ class ActualState(BaseAS):
 
 class StructuredThought(Instance):
     stack: List[ActualState]
-    counts: Dict[str,Tuple[Optional[int],bool]]
+    counts: Dict[str,Optional[int]] = {}
     content: Dict[str,Any] = {}
 
     def astate(self, delta=0):
@@ -183,33 +186,44 @@ class StructuredThought(Instance):
     def __write_path_rec(self, path:List[Step], content:Dict[str,Any], data:Any):
         assert isinstance(content,dict)
         assert len(path) > 0
+        key = path[0].key
+        idx = path[0].idx
         if len(path) == 1:
-            assert path[0].key in content
-            if content[path[0].key] is None:
-                assert path[0].idx is None, "Index was provided but leaf is a dict not a list"
-                content.update({ path[0].key : data })
-            elif isinstance(content[path[0].key], list):
-                content = content[path[0].key]
-                assert path[0].idx < len(content), "Provided index is out of bounds"
-                assert content[path[0].idx] is None, "Trying to overide existing data."
-                content[path[0].idx] = data
-            elif path[0].idx is None and content[path[0].key] is not None:
-                raise Exception("Trying to overide existing data.")
+            if idx is None:
+                assert (not key in content) or (content[key] is None), "Trying to overide existing data."
+                content.update({ key : data })
             else:
-                raise Exception("Should not happen...")
-        elif path[0].key in content:
-            content = content[path[0].key]
+                if key in content:
+                    if content[key] is None:
+                        content.update({ key : [] })
+                    content = content[key]
+                    assert isinstance(content, list)
+                    if idx < len(content):
+                        assert content[idx] is None, "Trying to overide existing data."
+                        content[idx] = data
+                    else:
+                        if idx > len(content):
+                            content += [None]*(idx - len(content) - 1)
+                        content.append(data)
+                else:
+                    content.update({ key :  [None]*(idx-1) + [data] })
+        else:
+            if not key in content:
+                if idx is None:
+                    content.update({ key : {} })
+                else:
+                    content.update({ key : [] })
+            content = content[key]
             if isinstance(content, dict):
-                assert path[0].idx is None, "Index was provided but child is a dict not a list"
+                assert idx is None, "Index was provided but child is a dict not a list"
                 self.__write_path_rec(path[1:], content, data)
             elif isinstance(content, list):
-                assert path[0].idx is not None, "Expect index to write a list"
-                assert path[0].idx < len(content), "Provided index is out of bounds"
-                self.__write_path_rec(path[1:], content[path[0].idx], data)
+                assert idx is not None, "Expect index to write a list"
+                if idx > len(content):
+                    content += [ {} for _ in range(idx - len(content)) ]
+                self.__write_path_rec(path[1:], content[idx], data)
             else:
                 raise Exception("Should not happen...")
-        else:
-            raise Exception("Should not happen...")
 
     def write_path(self, path:List[Step], data:Any):
         # print(f"path={path}")
@@ -222,39 +236,29 @@ class StructuredThought(Instance):
         return res
 
     def known_choice(self, expected:List):
-        if self.started:
-            return list(range(len(expected)))
         candidates = []
         rejected = []
         unknown = []
-        # print(f"self.counts.keys()={self.counts.keys()}")
         for (i,e) in enumerate(expected):
-            # print(f"expected={e}")
-            # print(f"e.vstate.tag()={e.vstate.tag()}")
-            (cnt,seen) = self.counts[e.vstate.tag()]
-            # print(f"(cnt,seen)=({cnt},{seen})")
-            if seen:
+            vtag = e.vstate.tag()
+            if vtag in self.counts:
                 content = self.get_content(delta=e.delta-1)
                 assert content is not None
                 assert isinstance(content, dict), f"content={content}"
-                assert e.vstate.label in content, f"content={content}"
+                if not e.vstate.label in content:
+                    rejected.append(i)
+                    continue
                 content = content[e.vstate.label]
                 if not isinstance(content, list):
                     assert isinstance(content, str)
                     content = [content]
                 assert isinstance(content, list), f"content={content}"
-                # print(f"cnt={cnt}")
-                # print(f"len(content)={len(content)}")
-                # print(f"self.astate(e.delta).idx={self.astate(e.delta).idx}")
                 current = self.astate(e.delta)
                 if current.vstate == e.vstate and current.idx + 1 >= len(content):
-                    # print(f"-> rejected")
                     rejected.append(i)
                 else:
-                    # print(f"-> candidates")
                     candidates.append(i)
             else:
-                # print(f"-> unknown")
                 unknown.append(i)
 
         # print(f"candidates={candidates}")

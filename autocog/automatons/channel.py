@@ -11,10 +11,25 @@ class Callee(BaseModel):
     cog: Optional[str] = None
     entry: Optional[str] = None
 
+    @staticmethod
+    def parse(text:Optional[str]):
+        if text is None:
+            return None
+        call = text.split('@')
+        cog = call[0].strip()
+        if len(cog) == 0:
+            cog = None
+        entry = None
+        if len(call) == 2:
+            entry = call[1].strip()
+            if len(entry) == 0:
+                entry = None
+        return Callee(cog=cog, entry=entry)
+
 class Channel(BaseModel):
     machine:  StateMachine
     target:   Path
-    source:   List[Port]
+    source:   Optional[Port]
     call:     Optional[Callee]
     kwargs:   Optional[Dict[str,Port]]
 
@@ -22,14 +37,11 @@ class Channel(BaseModel):
     def parse(text:str):
         pass # TODO 
     
-    def __init__(self, machine, source:str, target:str, call:Optional[str]=None, kwargs:Dict[str,str]={}):
-        source = [ Port.parse(s) for s in source.split(',') ]
-        target = Path.parse(target)
-        
-        if call is not None:
-            call = call.split('@')
-            call = Callee(call[0].strip(), call[1].strip())
-
-        kwargs = { k : Port.parse(v) for (k,v) in kwargs }
-
-        super().__init__(machine=machine, source=source, target=target, call=call, kwargs=kwargs)
+    def __init__(self, machine, target:str, source:Optional[str]=None, call:Optional[str]=None, kwargs:Dict[str,str]={}):
+        super().__init__(
+            machine=machine,
+            source=None if source is None else Port.parse(source),
+            target=Path.parse(target),
+            call=Callee.parse(call),
+            kwargs={ k : Port.parse(v) for (k,v) in kwargs }
+        )

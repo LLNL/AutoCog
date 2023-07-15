@@ -6,9 +6,14 @@ from pydantic import BaseModel
 import json
 
 from .base import Path
+from .instance import Instance
 
 class Port(BaseModel):
     mapped: bool
+
+    @abstractmethod
+    def retrieve(self, curr:str, stacks: Dict[str,List[Instance]], idx:int):
+        pass
 
     @staticmethod
     def parse(text:str):
@@ -32,9 +37,24 @@ class Port(BaseModel):
 class Constant(Port):
     value: Any
 
+    def retrieve(self, stacks: Dict[str,List[Instance]], curr=None, idx=None):
+        return value
+
 class Input(Port):
     key: Path
+
+    def retrieve(self, stacks: Dict[str,Any], curr=None, idx=None):
+        return self.key.retrieve(stacks['__inputs__'])
 
 class Prompt(Port):
     tag:  Optional[str]
     path: Path
+
+    def retrieve(self, curr:str, stacks: Dict[str,List[Instance]], idx=-1):
+        # print(f"curr={curr}")
+        # print(f"ptag={self.tag}")
+        stack = stacks[curr if self.tag is None else self.tag]
+        if len(stack) == 0 or idx > len(stacks):
+            return None
+        return self.path.retrieve(stack[idx].content)
+        
