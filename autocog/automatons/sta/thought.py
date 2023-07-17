@@ -261,9 +261,9 @@ class StructuredThought(Instance):
             else:
                 unknown.append(i)
 
-        # print(f"candidates={candidates}")
-        # print(f"unknown={unknown}")
-        # print(f"rejected={rejected}")
+        # print(f"candidates = {[ expected[e].prompt for e in candidates ]}")
+        # print(f"unknown    = {[ expected[e].prompt for e in unknown]}")
+        # print(f"rejected   = {[ expected[e].prompt for e in rejected]}")
         candidates = sorted(candidates, key=lambda i: expected[i].delta)
         if len(candidates) > 0:
             return candidates[-1]

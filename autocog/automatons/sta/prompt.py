@@ -39,6 +39,7 @@ class StructuredThoughtPrompt(BaseModel):
     def build(self, stmts:List[Dict]):
         # print(f"StructuredThoughtPrompt.build(tag={self.stm.tag})")
         self.stm.add_state(self.stm.tag, VirtualState(label=self.stm.tag, path=[], fmt='record', desc=self.desc))
+        stag_to_ordered_children = {}
         stack = []
         previous = self.stm.tag
         for (s,(label,path,data)) in enumerate(stmts):
@@ -60,6 +61,7 @@ class StructuredThoughtPrompt(BaseModel):
                 assert delta == 1
                 self.stm.transitions[previous].update({ stag : 1 })
                 stack.append(previous)
+                stag_to_ordered_children.update({ previous : [] })
             elif delta < 0:
                 for d in range(1, -delta+1):
                     # print(f"    d = {d}")
@@ -69,35 +71,62 @@ class StructuredThoughtPrompt(BaseModel):
                 self.stm.transitions[previous].update({ stag : delta })
             else:
                 self.stm.transitions[previous].update({ stag : 0 })
-
+            stag_to_ordered_children[stack[-1]].append(stag)
             previous = stag
+
         self.stm.add_state(f"exit", VirtualState(label="exit", path=[], fmt='next', desc=""))
         delta = -len(stack)
-        # print(f"    delta  = {delta}")
         assert delta < 0
-        for d in range(1, -delta+1):
-            # print(f"    d = {d}")
-            if self.stm.states[stack[-d]].max_count > 0:
-                self.stm.transitions[previous].update({ stack[-d] : -d })
+        self.stm.transitions[previous].update({ stack[-d] : -d for d in range(1, -delta+1) if self.stm.states[stack[-d]].max_count > 0 })
         self.stm.transitions[previous].update({ "exit" : delta })
 
+        tgt_to_src = { stag : {} for stag in self.stm.states.keys() }
+        for (src,tgts) in self.stm.transitions.items():
+            for (tgt,delta) in tgts.items():
+                tgt_to_src[tgt].update({ src : delta })
+
+        # print(f"stag_to_ordered_children={stag_to_ordered_children}")
         # Add a skip edge for list that can be empty
-        for (stag,vs) in self.stm.states.items():
-            is_list = vs.max_count > 0    # FIXME
-            list_range = (0,vs.max_count) # FIXME
-            if not is_list or list_range[0] > 0:
-                continue
-            for (src,tgts) in self.stm.transitions.items():
-                if src == stag or not stag in tgts:
-                    continue
-                delta = tgts[stag]
-                for (tgt,delta_) in self.stm.transitions[stag].items():
-                    if tgt == stag or tgt == src:
-                        continue
-                    if tgt in self.stm.transitions[src]:
-                        assert self.stm.transitions[src][tgt] == delta + delta_
-                    else:
-                        self.stm.transitions[src].update({ tgt : delta + delta_ })
+        for (parent_stag,ordered_children) in stag_to_ordered_children.items():
+            # print(f"parent_stag={parent_stag}")
+            parent_vs = self.stm.states[parent_stag]
+            for (child_idx,child_stag) in enumerate(ordered_children):
+                # print(f"child_stag={child_stag}")
+                child_vs = self.stm.states[child_stag]
+                # print(f"child_vs={child_vs}")
+                is_list    = child_vs.max_count > 0 # FIXME
+                list_range = (0,child_vs.max_count) # FIXME
+                if is_list and list_range[0] == 0:
+                    tr = []
+                    for (src_stag,src_delta) in tgt_to_src[child_stag].items():
+                        # print(f"src_stag={src_stag}")
+                        if src_stag == child_stag:
+                            continue
+                        src_vs = self.stm.states[src_stag]
+                        # print(f"src_vs={src_vs}")
+                        for (tgt_stag,tgt_delta) in self.stm.transitions[child_stag].items():
+                            # print(f"tgt_stag={tgt_stag}")
+                            if tgt_stag == src_stag or tgt_stag == child_stag:
+                                continue
+                            tgt_vs = self.stm.states[tgt_stag]
+                            # print(f"tgt_vs={tgt_vs}")
+                            no_label = lambda tag: '.'.join(tag.split('.')[1:])
+                            src_is_sibling  = no_label(src_stag).startswith(no_label(parent_stag)) and len(src_vs.path) == len(child_vs.path)
+                            assert (not src_is_sibling) or src_vs.path[-1] < child_vs.path[-1]
+                            src_is_parent   = src_stag == parent_stag
+                            tgt_is_sibling  = no_label(tgt_stag).startswith(no_label(parent_stag)) and len(tgt_vs.path) == len(child_vs.path)
+                            assert (not tgt_is_sibling) or child_vs.path[-1] < tgt_vs.path[-1]
+                            tgt_is_ancestor = no_label(child_stag).startswith(no_label(tgt_stag))
+
+                            # print(f"> {src_is_sibling} {src_is_parent} {tgt_is_sibling} {tgt_is_ancestor}")
+
+                            # connect inputs to outputs that are siblings and ancestors, do not loop parent to any ancestor.
+                            if ( src_is_sibling and ( tgt_is_sibling or tgt_is_ancestor ) ) or ( src_is_parent and tgt_is_sibling ):
+                                # print(f">>> delta={src_delta+tgt_delta}")
+                                tr.append(( src_stag, tgt_stag, src_delta+tgt_delta ))
+                    for (src,tgt,delta) in tr:
+                        self.stm.transitions[src].update({ tgt : delta })
+                        tgt_to_src[tgt].update({ src : delta })
 
     @classmethod
     def create(cls, ptag:str, desc:str, stmts:List[Dict], **config):

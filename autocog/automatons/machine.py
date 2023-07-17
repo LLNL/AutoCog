@@ -70,6 +70,7 @@ class StateMachine(BaseModel):
         offset = instance.idx
         if instance.need_prompt():
             expected = self.get_expectations(instance=instance)
+            # print(f"expected={[ e.prompt for e in expected ]}")
             if len(expected) == 0:
                 raise Exception("No expectation!")
             choice = 0 if len(expected) == 1 else instance.known_choice(expected)
@@ -79,21 +80,19 @@ class StateMachine(BaseModel):
                 choice = choice[c]
 
             if expected[choice].vstate.label == 'exit':
+                # TODO check for @ptag[idx].__next
                 choices = [ c for (c,l) in zip(formats['next'].choices, formats['next'].limits) if l is None or l > 0 ]
+                instance.prompt += 'exit(next): '
                 if len(LMs) == 0:
-                    # This happen when unit testing the dataflow (without LM)
-                    #      tests/unittests/iteration-text-flow.sta
-                    # For now just take the first choice, meaning that loops must be bounded.
-                    # This will "exhaust" the branches from left to right.
-                    # TODO mechanism to force a specfic path through the CFG? How to create matching dataflow production? Either use a call channel or a "fake" LM.
                     instance.next = choices[0] if len(choices) > 0 else None
                 elif len(choices) > 1:
-                    choice = LMs['text'].choose(prompt=header+instance.prompt+'exit(next): ', choices=[c[0] for c in choices])
+                    choice = LMs['text'].choose(prompt=header+instance.prompt, choices=[c[0] for c in choices])
                     instance.next = choices[choice]
                 elif len(choices) == 1:
                     instance.next = choices[0]
                 else:
                     instance.next = None
+                instance.prompt += ('' if instance.next is None else instance.next) + '\n'
                 return False
 
             offset += self.__consume_prompt(instance=instance, match=expected[choice])

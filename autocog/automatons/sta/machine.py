@@ -83,7 +83,7 @@ class StructuredThoughtMachine(StateMachine):
 
             if len(states) > 1:
                 stags = " -> ".join([ self.gv_state_tag(state=s) for s in states ])
-                dotstr += "  { rank=same; "+stags+" [ constraint=True, style=solid ] }\n"
+                dotstr += "  { rank=same; "+stags+" [ constraint=True, style=invis ] }\n"
             for s in states:
                 parent = f"{self.tag}_root" if d == 1 else self.gv_state_tag(path=s.path[:-1])
                 dotstr += f'  {parent} -> {self.gv_state_tag(state=s)} [constraint=True, style=dotted, arrowhead=none];\n'
@@ -100,8 +100,8 @@ class StructuredThoughtMachine(StateMachine):
                     dotstr += f'  {srctag} -> {tgttag} [label="{depth}", color="green", constraint=False, style="solid"];\n'
                 elif depth < 0:
                     dotstr += f'  {srctag} -> {tgttag} [label="{depth}", color="red", constraint=False, style="solid"];\n'
-                elif srctag == tgttag:
-                    dotstr += f'  {srctag} -> {tgttag} [constraint=False, style="solid"];\n'
+                else:
+                    dotstr += f'  {srctag} -> {tgttag} [constraint=False, style="solid", color="blue"];\n'
 
         return dotstr
 
@@ -120,6 +120,7 @@ class StructuredThoughtMachine(StateMachine):
     def get_expectations(self, instance: StructuredThought):
         expected = []
         transitions = self.transitions[instance.vstate().tag()]
+        # print(f"transitions={transitions}")
         for (tgt,delta) in transitions.items():
             vs = self.states[tgt]
             prompt = ''.join([ '> ' for i in vs.path ])
