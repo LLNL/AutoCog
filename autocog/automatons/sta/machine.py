@@ -50,7 +50,6 @@ class StructuredThoughtMachine(StateMachine):
         elif len(path) == 0:
             return self.tag + '_root'
         else:
-            
             return "{}_{}".format(self.tag, '_'.join(map(lambda x: str(x[0]),path)))
 
     def toGraphViz(self):

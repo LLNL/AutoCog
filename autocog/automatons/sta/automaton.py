@@ -21,7 +21,7 @@ class StructuredThoughtAutomaton(Automaton):
     outputs: List[Tuple[StructuredThoughtPrompt,List[VirtualState]]] = []
     externs: Dict[str,Any] = {}
     inputs: List[str] = []
-    
+
     @classmethod
     def __compile_formats(cls, formats:Dict):
         record_desc = 'start of a nested prompt'
@@ -79,7 +79,7 @@ class StructuredThoughtAutomaton(Automaton):
                 fmt = Text(label=lbl, desc=desc, max_token=max_tok, base=parent )
             res.update({ lbl : fmt })
         return res
-        
+
     @classmethod
     def compile(cls, tag:str, entry:str, prompts:Dict[str,Any], outputs:List, formats:Dict, config:Dict[str,Any], description:str, orchestrator:Orchestrator):
         for ptag in prompts:
@@ -194,7 +194,7 @@ class StructuredThoughtAutomaton(Automaton):
             while fmt_line < len(program) and program[fmt_line].startswith('- '):
                 (k,v) = program[fmt_line][2:].split(':')
                 k = k.strip().split('(')
-                if len(k) == 1: 
+                if len(k) == 1:
                     p = None
                     k = k[0].strip()
                     l = None
@@ -270,7 +270,7 @@ class StructuredThoughtAutomaton(Automaton):
             channels.append(channel)
             p += 1
         return (channels, p)
-    
+
     @classmethod
     def parse_statements(cls, program:List, p:int, indent:str='> '):
         stmts = []
@@ -364,7 +364,7 @@ class StructuredThoughtAutomaton(Automaton):
                 outputs += [ { 'prompt' : ptag, 'source' : list(outs) } ]
             else:
                 raise Exception("Unknown statement")
-            
+
             prompts.update({ ptag : { 'desc' : prompt_desc, 'channels' : channels, 'stmts' : stmts, 'next' : ( next, next_desc ) }})
 
         return (prompts, outputs)
@@ -392,7 +392,7 @@ class StructuredThoughtAutomaton(Automaton):
             in_tag = f"{self.tag}_input_{i.key.path(True)}".replace('-','_').replace('[','_').replace(']','_').replace('.','_')
             dotstr += f"  {in_tag} [label=\"{i.key.path(True)}\", shape=\"octagon\"]\n"
         dotstr += "}\n"
-        
+
         for (ptag,prompt) in self.prompts.items():
             dotstr += "subgraph cluster_" + self.tag.replace('-','_') + "_" + ptag + " {\n"
             dotstr += prompt.stm.toGraphViz() + "\n"
