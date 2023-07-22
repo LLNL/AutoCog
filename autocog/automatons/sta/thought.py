@@ -8,8 +8,9 @@ from ..machine import VirtualState as BaseVS, ActualState as BaseAS, Instance, P
 from ..base import Step
 
 class VirtualState(BaseVS):
-    path: List[Tuple[int,str]]       #
-    max_count: int = 0    # scalar state if zero else max sequence length
+    path: List[Tuple[int,str]]
+    is_list: bool = False
+    list_range: Optional[Tuple[int,int]] = None
 
     def tag(self, ptag:Optional[str]=None):
         if ptag is None:
@@ -56,7 +57,7 @@ class StructuredThought(Instance):
         for content_ in content.values():
             res += self.__ravel_rec(lbl, content_)
         return res
-        
+
     def ravel(self, lbl):
         return self.__ravel_rec(lbl, self.content)
 
@@ -79,7 +80,7 @@ class StructuredThought(Instance):
 
     def ravel_path(self, path):
         return self.__ravel_path_rec(path, self.content)
-    
+
     def need_prompt(self):
         vstate = self.vstate()
         astate = self.astate()
@@ -100,7 +101,7 @@ class StructuredThought(Instance):
             if not astate.vstate.label in content:
                 return None
             content = content[astate.vstate.label]
-            if astate.vstate.max_count > 0:
+            if astate.vstate.is_list:
                 if not isinstance(content, list):
                     assert isinstance(content, str), f"content={content}"
                     content = [content]
@@ -128,15 +129,17 @@ class StructuredThought(Instance):
         for astate in self.stack[1:-1]:
             # print(f"astate={astate}")
             if not astate.vstate.label in parent_content or parent_content[astate.vstate.label] is None:
-                parent_content.update({ astate.vstate.label : (None if astate.vstate.fmt != 'record' else dict()) if astate.vstate.max_count == 0 else list() })
+                parent_content.update({
+                    astate.vstate.label : [] if astate.vstate.is_list else ( None if astate.vstate.fmt != 'record' else dict() )
+                })
                 # print(f"parent_content={parent_content}")
 
-            if astate.vstate.max_count == 0 and isinstance(parent_content[astate.vstate.label], list):
+            if (not astate.vstate.is_list) and isinstance(parent_content[astate.vstate.label], list):
                 assert len(parent_content[astate.vstate.label]) == 0
                 parent_content.update({ astate.vstate.label : dict() })
             parent_content = parent_content[astate.vstate.label]
             # print(f"parent_content={parent_content}")
-            if astate.vstate.max_count > 0:
+            if astate.vstate.is_list:
                 assert isinstance(parent_content, list)
                 if astate.idx >= len(parent_content):
                     assert astate.idx == len(parent_content)
@@ -153,13 +156,13 @@ class StructuredThought(Instance):
         if vstate.label in parent_content:
             content = parent_content[vstate.label]
             if isinstance(content, list):
-                assert vstate.max_count > 0
+                assert vstate.is_list
                 assert astate.idx == len(content)
                 content.append(data)
             else:
                 assert content is None
                 parent_content.update({ vstate.label : data })
-        elif vstate.max_count > 0 and not isinstance(data, list):
+        elif vstate.is_list and not isinstance(data, list):
             parent_content.update({ vstate.label : [ data ] })
         else:
             if isinstance(parent_content, list):
@@ -218,7 +221,7 @@ class StructuredThought(Instance):
                 assert idx is None, "Index was provided but child is a dict not a list"
                 self.__write_path_rec(path[1:], content, data)
             elif isinstance(content, list):
-                assert idx is not None, "Expect index to write a list"
+                assert idx is not None, f"Expect index to write a list. path={path}"
                 if idx > len(content):
                     content += [ {} for _ in range(idx - len(content)) ]
                 self.__write_path_rec(path[1:], content[idx], data)

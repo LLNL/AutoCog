@@ -35,8 +35,8 @@ class Channel(BaseModel):
 
     @staticmethod
     def parse(text:str):
-        pass # TODO 
-    
+        pass # TODO
+
     def __init__(self, machine, target:str, source:Optional[str]=None, call:Optional[str]=None, kwargs:Dict[str,str]={}):
         super().__init__(
             machine=machine,

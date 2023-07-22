@@ -24,7 +24,7 @@ class StructuredThoughtAutomaton(Automaton):
 
     @classmethod
     def __compile_formats(cls, formats:Dict):
-        record_desc = 'start of a nested prompt'
+        record_desc = 'Record mark the beginning of a nested prompt. It is always left empty.'
         if 'record' in formats:
             record_desc = formats['record'][0]
             del formats['record']
@@ -38,7 +38,7 @@ class StructuredThoughtAutomaton(Automaton):
                 text_count = formats['text'][2]
             del formats['text']
 
-        thought_desc = 'your thoughts (a few words per lines)'
+        thought_desc = 'use thought to take notes as you perform a task (a few words per lines)'
         thought_base = 'text'
         thought_count = 15
         if 'thought' in formats:
@@ -291,12 +291,20 @@ class StructuredThoughtAutomaton(Automaton):
 
             cnt_pos = stmt.find('[')
             if cnt_pos > 0 and cnt_pos < desc_pos:
+                is_list = True
                 lbl_pos = cnt_pos
                 t = stmt.find(']')
                 assert t > cnt_pos+1
-                max_count = int(stmt[cnt_pos+1:t])
+                list_range = list(map(int,stmt[cnt_pos+1:t].split(',')))
+                if len(list_range) == 1:
+                    list_range = (list_range[0],list_range[0])
+                elif len(list_range) == 2:
+                    list_range = (list_range[0],list_range[1])
+                else:
+                    raise Exception()
             else:
-                max_count = 0
+                is_list = False
+                list_range = None
 
             fmt_pos = stmt.find('(')
             if fmt_pos > 0 and fmt_pos < desc_pos:
@@ -312,12 +320,12 @@ class StructuredThoughtAutomaton(Automaton):
 
             label = stmt[:lbl_pos].strip()
 
-            stmts.append(( depth, label, max_count, fmt, desc ))
+            stmts.append(( depth, label, is_list, list_range, fmt, desc ))
             p += 1
 
         path = []
         for s in range(len(stmts)):
-            ( depth, label, max_count, fmt, desc ) = stmts[s]
+            ( depth, label, is_list, list_range, fmt, desc ) = stmts[s]
             # print(f"depth={depth} label={label}")
             if len(path) < depth:
                 assert depth - len(path) == 1, "Can only stack one at the time"
@@ -334,7 +342,7 @@ class StructuredThoughtAutomaton(Automaton):
                 assert stmts[s+1][0] - depth == 1, "Can only stack one at the time"
                 fmt = 'record'
 
-            stmts[s] = ( label, copy.deepcopy(path), { 'max_count' : max_count, 'fmt' : fmt, 'desc' : desc } )
+            stmts[s] = ( label, copy.deepcopy(path), { 'is_list' : is_list, 'list_range' : list_range, 'fmt' : fmt, 'desc' : desc } )
         return (stmts, p)
 
     @classmethod
@@ -411,7 +419,10 @@ class StructuredThoughtAutomaton(Automaton):
                     if isinstance(channel.source, Input):
                         src_tag = f"{self.tag}_input_{channel.source.key.path(True)}".replace('-','_').replace('[','_').replace(']','_').replace('.','_')
                     else:
-                        src_tag = self.prompts[channel.source.tag].stm.gv_state_tag(state=path_to_vs[channel.source.tag][channel.source.path.path()])
+                        src_ptag = channel.source.tag
+                        if src_ptag is None:
+                            src_ptag = ptag
+                        src_tag = self.prompts[src_ptag].stm.gv_state_tag(state=path_to_vs[src_ptag][channel.source.path.path()])
                 elif channel.call is not None:
                     raise NotImplementedError() # TODO
                 else:

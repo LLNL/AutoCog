@@ -74,8 +74,11 @@ class StructuredThoughtMachine(StateMachine):
             for s in states:
                 label = s.label + '\\n'
                 label += f'{s.fmt}'
-                if s.max_count > 0:
-                    label += f'[{s.max_count}]'
+                if s.is_list:
+                    if s.list_range[0] != s.list_range[1]:
+                        label += f'[{s.list_range[0]},{s.list_range[1]}]'
+                    else:
+                        label += f'[{s.list_range[0]}]'
                 label += f"\\n{'.'.join(map(lambda x: str(x[0]), s.path))}"
 
                 dotstr += f'  {self.gv_state_tag(state=s)} [label="{label}", shape=rectangle];\n'
@@ -111,8 +114,11 @@ class StructuredThoughtMachine(StateMachine):
             vs = self.states[tag]
             res += '> ' * len(vs.path)
             res += vs.label
-            if vs.max_count > 0:
-                res += f'[{vs.max_count}]'
+            if vs.is_list:
+                if vs.list_range[0] != vs.list_range[1]:
+                    res += f'[{vs.list_range[0]},{vs.list_range[1]}]'
+                else:
+                    res += f'[{vs.list_range[0]}]'
             res += f'({vs.fmt}): {vs.desc}\n'
         return res
 
@@ -125,14 +131,14 @@ class StructuredThoughtMachine(StateMachine):
             prompt = ''.join([ '> ' for i in vs.path ])
             prompt += vs.label
             idx = 0
-            if vs.max_count > 0:
+            if vs.is_list:
                 vs_ = instance.vstate(delta)
                 if vs_ == vs:
                     idx = instance.astate(delta).idx + 1
                 else:
                     idx = 0
                 prompt += f"[{idx+1}]"
-                if idx >= vs.max_count:
+                if idx >= vs.list_range[1]:
                     continue
             prompt += f"({vs.fmt}):"
             prompt += '\n' if vs.fmt == 'record' else ' '

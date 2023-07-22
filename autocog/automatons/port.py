@@ -57,4 +57,3 @@ class Prompt(Port):
         if len(stack) == 0 or idx > len(stacks):
             return None
         return self.path.retrieve(stack[idx].content)
-        

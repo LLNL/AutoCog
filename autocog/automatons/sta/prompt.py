@@ -40,6 +40,7 @@ class StructuredThoughtPrompt(BaseModel):
         # print(f"StructuredThoughtPrompt.build(tag={self.stm.tag})")
         self.stm.add_state(self.stm.tag, VirtualState(label=self.stm.tag, path=[], fmt='record', desc=self.desc))
         stag_to_ordered_children = {}
+        stag_to_parent = {}
         stack = []
         previous = self.stm.tag
         for (s,(label,path,data)) in enumerate(stmts):
@@ -52,7 +53,7 @@ class StructuredThoughtPrompt(BaseModel):
             stag = "{}.{}".format(label,'.'.join(map(lambda x: str(x[0]),path)))
             vstate = VirtualState(label=label, path=path, **data)
             self.stm.add_state(stag, vstate)
-            if vstate.fmt != 'record' and vstate.max_count > 0:
+            if vstate.fmt != 'record' and vstate.is_list:
                 self.stm.transitions[stag].update({ stag : 0 })
 
             delta = len(path) - len(stack)
@@ -65,19 +66,20 @@ class StructuredThoughtPrompt(BaseModel):
             elif delta < 0:
                 for d in range(1, -delta+1):
                     # print(f"    d = {d}")
-                    if self.stm.states[stack[-d]].max_count > 0:
+                    if self.stm.states[stack[-d]].is_list:
                         self.stm.transitions[previous].update({ stack[-d] : -d })
                 stack = stack[:delta]
                 self.stm.transitions[previous].update({ stag : delta })
             else:
                 self.stm.transitions[previous].update({ stag : 0 })
             stag_to_ordered_children[stack[-1]].append(stag)
+            stag_to_parent.update({ stag : stack[-1] })
             previous = stag
 
         self.stm.add_state(f"exit", VirtualState(label="exit", path=[], fmt='next', desc=""))
         delta = -len(stack)
         assert delta < 0
-        self.stm.transitions[previous].update({ stack[-d] : -d for d in range(1, -delta+1) if self.stm.states[stack[-d]].max_count > 0 })
+        self.stm.transitions[previous].update({ stack[-d] : -d for d in range(1, -delta+1) if self.stm.states[stack[-d]].is_list })
         self.stm.transitions[previous].update({ "exit" : delta })
 
         tgt_to_src = { stag : {} for stag in self.stm.states.keys() }
@@ -85,31 +87,60 @@ class StructuredThoughtPrompt(BaseModel):
             for (tgt,delta) in tgts.items():
                 tgt_to_src[tgt].update({ src : delta })
 
-        # print(f"stag_to_ordered_children={stag_to_ordered_children}")
+        predsuccs = {}
+        for (parent_stag,ordered_children) in stag_to_ordered_children.items():
+            for (child_idx,child_stag) in enumerate(ordered_children):
+                if child_idx == 0:
+                    pred = None
+                    succ = child_idx + 1
+                elif child_idx == len(ordered_children) - 1:
+                    pred = child_idx - 1
+                    succ = None
+                else:
+                    succ = child_idx - 1
+                    pred = child_idx + 1
+
+        print(f"stag_to_ordered_children={stag_to_ordered_children}")
         # Add a skip edge for list that can be empty
         for (parent_stag,ordered_children) in stag_to_ordered_children.items():
-            # print(f"parent_stag={parent_stag}")
+            print(f"parent_stag={parent_stag}")
+            if len(ordered_children) == 1:
+                continue # TODO assert not is_list or list_range[0] > 0
             parent_vs = self.stm.states[parent_stag]
             for (child_idx,child_stag) in enumerate(ordered_children):
-                # print(f"child_stag={child_stag}")
                 child_vs = self.stm.states[child_stag]
-                # print(f"child_vs={child_vs}")
-                is_list    = child_vs.max_count > 0 # FIXME
-                list_range = (0,child_vs.max_count) # FIXME
-                if is_list and list_range[0] == 0:
+                if child_vs.fmt != 'record' or not child_vs.is_list or child_vs.list_range[0] > 0:
+                    continue
+                if child_idx == 0:
+                    src = parent_stag
+                    tgt = ordered_children[child_idx+1]
+                    delta = 1
+                elif child_idx < len(ordered_children) - 1:
+                    src = ordered_children[child_idx-1]
+                    tgt = ordered_children[child_idx+1]
+                    delta = 0
+                else:
+                    continue # TODO
+                self.stm.transitions[src].update({ tgt : delta })
+                tgt_to_src[tgt].update({ src : delta })
+            for (child_idx,child_stag) in enumerate(ordered_children):
+                print(f"  child_stag={child_stag}")
+                child_vs = self.stm.states[child_stag]
+                print(f"  child_vs={child_vs}")
+                if child_vs.is_list and child_vs.list_range[0] == 0:
                     tr = []
                     for (src_stag,src_delta) in tgt_to_src[child_stag].items():
-                        # print(f"src_stag={src_stag}")
+                        print(f"    src_stag={src_stag}")
                         if src_stag == child_stag:
                             continue
                         src_vs = self.stm.states[src_stag]
-                        # print(f"src_vs={src_vs}")
+                        print(f"    src_vs={src_vs}")
                         for (tgt_stag,tgt_delta) in self.stm.transitions[child_stag].items():
-                            # print(f"tgt_stag={tgt_stag}")
+                            print(f"      tgt_stag={tgt_stag}")
                             if tgt_stag == src_stag or tgt_stag == child_stag:
                                 continue
                             tgt_vs = self.stm.states[tgt_stag]
-                            # print(f"tgt_vs={tgt_vs}")
+                            print(f"      tgt_vs={tgt_vs}")
                             no_label = lambda tag: '.'.join(tag.split('.')[1:])
                             src_is_sibling  = no_label(src_stag).startswith(no_label(parent_stag)) and len(src_vs.path) == len(child_vs.path)
                             assert (not src_is_sibling) or src_vs.path[-1] < child_vs.path[-1]
@@ -118,11 +149,11 @@ class StructuredThoughtPrompt(BaseModel):
                             assert (not tgt_is_sibling) or child_vs.path[-1] < tgt_vs.path[-1]
                             tgt_is_ancestor = no_label(child_stag).startswith(no_label(tgt_stag))
 
-                            # print(f"> {src_is_sibling} {src_is_parent} {tgt_is_sibling} {tgt_is_ancestor}")
+                            print(f"      > {src_is_sibling} {src_is_parent} {tgt_is_sibling} {tgt_is_ancestor}")
 
                             # connect inputs to outputs that are siblings and ancestors, do not loop parent to any ancestor.
                             if ( src_is_sibling and ( tgt_is_sibling or tgt_is_ancestor ) ) or ( src_is_parent and tgt_is_sibling ):
-                                # print(f">>> delta={src_delta+tgt_delta}")
+                                print(f"      >>> delta={src_delta+tgt_delta}")
                                 tr.append(( src_stag, tgt_stag, src_delta+tgt_delta ))
                     for (src,tgt,delta) in tr:
                         self.stm.transitions[src].update({ tgt : delta })
@@ -187,7 +218,7 @@ class StructuredThoughtPrompt(BaseModel):
             if child_vtag in needed:
                 child_stag = vtag_to_stag[child_vtag]
                 if child_stag in children_by_vtag:
-                    if self.stm.states[child_stag].max_count == 0:
+                    if not self.stm.states[child_stag].is_list:
                         content.update({ child_vtag : {} })
                         self.__fill_content_skeleton_rec(child_vtag, content[child_vtag], counts, needed, vtag_to_stag, children_by_vtag)
                     else:
@@ -198,7 +229,7 @@ class StructuredThoughtPrompt(BaseModel):
                                 content[child_vtag].append({})
                                 self.__fill_content_skeleton_rec(child_vtag, content[child_vtag][-1], counts, needed, vtag_to_stag, children_by_vtag)
                 else:
-                    if self.stm.states[child_stag].max_count == 0:
+                    if not self.stm.states[child_stag].is_list:
                         content.update({ child_vtag : None })
                     else:
                         content.update({ child_vtag : [] })
@@ -229,7 +260,7 @@ class StructuredThoughtPrompt(BaseModel):
 
             data = []
             for st in stacks[src_prompt][-1]:
-                data += st.ravel(src_vtag) 
+                data += st.ravel(src_vtag)
 
         if len(data) == 1:
             data = data[0]
@@ -295,7 +326,7 @@ class StructuredThoughtPrompt(BaseModel):
                 kwargs.append(data)
             else:
                 kwargs.append([data])
-        
+
         return [ { k : v for (k,v) in zip(keys,kwarg) } for kwarg in itertools.product(*kwargs) ]
 
     def __ravel_mapped_path_rec(self, data, path):
@@ -319,18 +350,18 @@ class StructuredThoughtPrompt(BaseModel):
 
     def finalize_data_for_loading(self, data, tgt, fmt):
         need_dict = issubclass(fmt.__class__, Record)
-        
+
         if isinstance(data,dict) and not need_dict:
             assert tgt in data
             data = data[tgt]
-        
+
         if need_dict:
             assert isinstance(data,dict)
         else:
             assert isinstance(data,str) or isinstance(data,bool) or isinstance(data,int) or isinstance(data,float)
 
         return data
-    
+
     def __channel_load(self, channel, data, vtag_to_stag, counts, stash):
         assert not channel.target in stash
         tgt_stag = vtag_to_stag[channel.target]
@@ -370,7 +401,7 @@ class StructuredThoughtPrompt(BaseModel):
         # print(f"data={json.dumps(data, indent=4)}")
 
         stash.update({ channel.target : data })
-        
+
     async def execute(self, fid:int, orchestrator:Orchestrator, stacks: Dict[str,List[Instance]], path:List[str], automaton_desc:str=''):
         datas = [ None for c in self.channels ]
         calls = []
@@ -396,18 +427,16 @@ class StructuredThoughtPrompt(BaseModel):
         for (c,channel) in enumerate(self.channels):
             (stag,vs) = path_to_stag_vs[channel.target.path()]
 
-            is_list    = vs.max_count > 0 # FIXME
-            list_range = (0,vs.max_count) # FIXME
             data = datas[c]
             if data is None:
-                assert is_list and list_range[0] == 0
+                # assert vs.is_list and vs.list_range[0] == 0
                 st.counts.update({ stag : 0 })
                 continue
-            if is_list:
+            if vs.is_list:
                 assert isinstance(data,list)
                 n = len(data)
-                assert n >= list_range[0]
-                assert n <= list_range[1]
+                assert n >= vs.list_range[0]
+                assert n <= vs.list_range[1]
                 st.counts.update({ stag : n })
             else:
                 assert not isinstance(data,list), f"channel={channel} data={data}"
