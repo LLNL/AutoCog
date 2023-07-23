@@ -49,15 +49,15 @@ class CognitiveArchitecture(BaseModel):
         return cog
     
     async def __call__(self, tag:str, **inputs):
-        return (await self.orchestrator.execute(jobs=[ (tag,inputs) ], pid=0))[0][0]
+        return (await self.orchestrator.execute(jobs=[ (tag,inputs) ], pid=0, progress=False))[0][0]
 
-    async def run(self, commands):
+    async def run(self, commands, progress:bool=True):
         jobs = []
         for cmd in commands:
             tag = cmd['tag']
             del cmd['tag']
             jobs.append( (tag,cmd) )
-        return await self.orchestrator.execute(jobs=jobs, pid=0)
+        return await self.orchestrator.execute(jobs=jobs, pid=0, progress=progress)
 
     def toGraphViz(self):
         dotstr = ''

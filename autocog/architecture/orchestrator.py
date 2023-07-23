@@ -4,6 +4,11 @@ from pydantic import BaseModel
 import uuid
 import asyncio
 
+try:
+    import tqdm
+except:
+    tqdm = None
+
 from ..cogs import Cog
 from ..lm.lm import LM
 from ..automatons.automaton import Automaton
@@ -65,14 +70,23 @@ class Orchestrator(BaseModel):
         ) for (idx, instance) in enumerate(instances) ]
 
 class Serial(Orchestrator):
-    async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0):
-        return [ ( Orchestrator.callback(self, fid, await coro), fid ) for (fid, coro) in super().coroframe(jobs, pid) ]
+    async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0, progress:bool=False):
+        if progress and tqdm is not None:
+            progress = tqdm.tqdm
+        else:
+            progress = lambda x: x
+        return [ ( Orchestrator.callback(self, fid, await coro), fid ) for (fid, coro) in progress(super().coroframe(jobs, pid)) ]
 
     async def prompt(self, fid:int, machine:StateMachine, instances:Instance, header:str, formats:Dict):
         return [ await coro for coro in super().prompt(fid, machine, instances, header, formats) ]
 
 class Async(Orchestrator):
-    async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0):
+    async def execute(self, jobs:List[Tuple[str,Any]], pid:int=0, progress:bool=False):
+        if progress and tqdm is not None:
+            gather = tqdm.asyncio.gather
+        else:
+            gather = asyncio.gather
+
         (fids, coros) = zip(*[ (fid, coro) for (fid, coro) in super().coroframe(jobs, pid) ])
         results = await asyncio.gather(*coros)
         return [ ( Orchestrator.callback(self, fid, result), fid ) for (fid, result) in zip(fids, results) ]

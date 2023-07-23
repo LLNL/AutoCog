@@ -252,12 +252,9 @@ class StructuredThought(Instance):
                     rejected.append(i)
                     continue
                 content = content[e.vstate.label]
-                if not isinstance(content, list):
-                    assert isinstance(content, str)
-                    content = [content]
-                assert isinstance(content, list), f"content={content}"
+                N = len(content) if isinstance(content, list) else 1
                 current = self.astate(e.delta)
-                if current.vstate == e.vstate and current.idx + 1 >= len(content):
+                if current.vstate == e.vstate and current.idx + 1 >= N:
                     rejected.append(i)
                 else:
                     candidates.append(i)
