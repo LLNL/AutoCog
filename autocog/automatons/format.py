@@ -28,6 +28,9 @@ class ControlEdge(Enum):
 class Repeat(Choice):
     source: List[str]
 
+class Select(Choice):
+    source: List[str]
+
 class Regex(Format):
     expr: str
 

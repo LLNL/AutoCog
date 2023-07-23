@@ -265,11 +265,13 @@ class StructuredThought(Instance):
                 unknown.append(i)
 
         # print(f"candidates = {[ expected[e].prompt for e in candidates ]}")
+        # print(f"candidates = {[ expected[e].vstate.path for e in candidates ]}")
+        # print(f"candidates = {[ tuple(map(lambda x: x[0], expected[e].vstate.path)) for e in candidates ]}")
         # print(f"unknown    = {[ expected[e].prompt for e in unknown]}")
         # print(f"rejected   = {[ expected[e].prompt for e in rejected]}")
-        candidates = sorted(candidates, key=lambda i: expected[i].delta)
+        candidates = sorted(candidates, key=lambda i: tuple(map(lambda x: x[0], expected[i].vstate.path)))
         if len(candidates) > 0:
-            return candidates[-1]
+            return candidates[0]
         else:
             assert len(unknown) > 0
             return unknown[0] if len(unknown) == 1 else unknown

@@ -6,7 +6,7 @@ import asyncio
 import os, copy
 
 from ..automaton import Automaton
-from ..format import Text, Enum, Regex, Repeat, Record, ControlEdge
+from ..format import Text, Enum, Regex, Repeat, Select, Record, ControlEdge
 from ..port import Input
 
 from ...architecture.orchestrator import Orchestrator
@@ -73,6 +73,8 @@ class StructuredThoughtAutomaton(Automaton):
                 fmt = Enum(label=lbl, desc=desc, choices=parent.split('=')[1].split(','))
             elif parent.startswith("repeat="):
                 fmt = Repeat(label=lbl, desc=desc, source=parent.split('=')[1].split('.'))
+            elif parent.startswith("select="):
+                fmt = Select(label=lbl, desc=desc, source=parent.split('=')[1].split('.'))
             else:
                 if max_tok is None:
                     max_tok = 0
@@ -101,6 +103,7 @@ class StructuredThoughtAutomaton(Automaton):
 
         for (ptag,prompt) in sta.prompts.items():
             for (vtag,vs) in prompt.stm.states.items():
+                # print(f"vs.fmt={vs.fmt}")
                 if vs.fmt == 'next':
                     continue
                 if not vs.fmt in sta.formats:
@@ -108,7 +111,9 @@ class StructuredThoughtAutomaton(Automaton):
                 if vtag != prompt.stm.tag:
                     fmt = vs.fmt
                     while fmt is not None:
+                        # print(f"fmt={fmt}")
                         F = sta.formats[fmt]
+                        # print(f"F={F}")
                         if not fmt in prompt.formats:
                             prompt.formats.update({ fmt : F })
                         if issubclass(F.__class__, Text):

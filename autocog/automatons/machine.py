@@ -4,7 +4,7 @@ from abc import abstractmethod
 from pydantic import BaseModel
 
 from .instance import Instance
-from .format import Text, Choice, Enum, Repeat, ControlEdge, Regex, Record
+from .format import Text, Choice, Enum, Repeat, Select, ControlEdge, Regex, Record
 
 import enum
 class ParseState(enum.Enum):
@@ -61,7 +61,7 @@ class StateMachine(BaseModel):
         instance.astate().internal = ParseState.content
         return len(match.prompt)
 
-    def parse_step(self, instance: Instance, LMs: Dict[str,Any], header:str, formats: Dict[str,Any]):
+    def parse_step(self, instance: Instance, LMs: Dict[str,Any], formats: Dict[str,Any]):
         internal = instance.astate().internal
         if internal == ParseState.start:
             raise Exception("Current state is not ready!")
@@ -76,7 +76,7 @@ class StateMachine(BaseModel):
             choice = 0 if len(expected) == 1 else instance.known_choice(expected)
             if isinstance(choice, list):
                 choices = [ expected[c].prompt for c in choice ]
-                c = LMs['text'].choose(prompt=header+instance.prompt, choices=choices)
+                c = LMs['text'].choose(prompt=instance.header+instance.prompt, choices=choices)
                 choice = choice[c]
 
             if expected[choice].vstate.label == 'exit':
@@ -86,7 +86,7 @@ class StateMachine(BaseModel):
                 if len(LMs) == 0:
                     instance.next = choices[0] if len(choices) > 0 else None
                 elif len(choices) > 1:
-                    choice = LMs['text'].choose(prompt=header+instance.prompt, choices=[c[0] for c in choices])
+                    choice = LMs['text'].choose(prompt=instance.header+instance.prompt, choices=[c[0] for c in choices])
                     instance.next = choices[choice]
                 elif len(choices) == 1:
                     instance.next = choices[0]
@@ -124,19 +124,21 @@ class StateMachine(BaseModel):
                             assert fmt.base in formats, f"Cannot find {fmt.base} in {formats.keys()}"
                             fmt = formats[fmt.base]
                     assert LM is not None
-                    content = LM.complete(prompt=header+instance.prompt, stop=stop)
+                    content = LM.complete(prompt=instance.header+instance.prompt, stop=stop)
                 elif isinstance(fmt, Choice):
                     if isinstance(fmt, Enum):
                         choices = fmt.choices
-                    elif isinstance(fmt, Repeat):
+                    elif isinstance(fmt, Repeat) or isinstance(fmt, Select):
                         assert len(fmt.source) > 0
                         assert fmt.source[0] == ''
                         choices = instance.ravel_path(fmt.source[1:])
                         assert isinstance(choices, list)
+                        if isinstance(fmt, Select):
+                            choices = list(map(lambda i: f"{i+1}", range(len(choices))))
                     else:
                         raise Exception(f"Unknown Choice format: {fmt}")
                     assert len(choices) > 0
-                    choice = LMs['text'].choose(prompt=header+instance.prompt, choices=choices)
+                    choice = LMs['text'].choose(prompt=instance.header+instance.prompt, choices=choices)
                     content = choices[choice] + stop
                 else:
                     raise Exception(f"Unknown format: {fmt}")
@@ -160,13 +162,13 @@ class StateMachine(BaseModel):
 
         return True
 
-    async def execute(self, instance: Instance, LMs: Dict[str,Any], header:str, formats: Dict[str,Any], out=None, limit=None):
+    async def execute(self, instance: Instance, LMs: Dict[str,Any], formats: Dict[str,Any], out=None, limit=None):
         #print(f"instance.content={instance.content}")
         # assert 'text' in LMs
         idx = 0
         if out is not None:
-            out.write(header)
-        while self.parse_step(instance, LMs, header, formats):
+            out.write(instance.header)
+        while self.parse_step(instance, LMs, formats):
             #print(f"> instance.idx:    {instance.idx}")
             #print(f'> instance.vstate: {instance.vstate().label}')
             if out is not None and idx < instance.idx:

@@ -4,6 +4,7 @@ from abc import abstractmethod
 from pydantic import BaseModel
 
 class Instance(BaseModel):
+    header: str
     prompt: str = ''
     idx: int = 0
 

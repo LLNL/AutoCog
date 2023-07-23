@@ -14,7 +14,8 @@ from .utility import PromptPipe
 class Frame(BaseModel):
     pid:     Optional[int] = None
     ctag:    Optional[str] = None
-    stacks:  Any           = None
+    stacks:  Optional[Dict[str,Any]] = None
+    prompts: Optional[Dict[str,List[str]]] = None
     subs:    List[int]     = []
     
 class Orchestrator(BaseModel):
@@ -50,6 +51,7 @@ class Orchestrator(BaseModel):
         frame = self.frames[fid]
         if issubclass(self.cogs[frame.ctag].__class__, Automaton):
             frame.stacks = { key : stack if key.startswith('__') else [ st.content for st in stack ] for (key,stack) in  result[1].items() }
+            frame.prompts = { key : [ st.header + st.prompt for st in stack ] for (key,stack) in  result[1].items() if not key.startswith('__') }
             return result[0]
         else:
             return result

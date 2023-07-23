@@ -146,8 +146,8 @@ class StructuredThoughtMachine(StateMachine):
             expected.append( Expectations(vstate=vs, prompt=prompt, idx=idx, delta=delta) )
         return expected
 
-    def init(self, counts:Dict[str,Tuple[int,bool]]={}) -> StructuredThought:
+    def init(self, header) -> StructuredThought:
         root = self.states[self.tag]
         aroot = ActualState(vstate=root)
         aroot.internal = ParseState.content
-        return StructuredThought(stack=[ aroot ], counts=counts)
+        return StructuredThought(stack=[ aroot ], header=header)
