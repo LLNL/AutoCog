@@ -17,7 +17,7 @@ formats:
 # The single prompt of this STA gets the question from the inputs,
 # runs a simple questionnaire, then exits with the answer
 prompt(fortune): You will analyse the user's question to write this {qualifier} answer.
-- target(question)
+- target(question) source(?question)
 > question(text): question from the user
 > meaning[{S}](thought): think about what the user might want hear 
 > intent(sentence): State how you will make your answer {qualifier} to the user

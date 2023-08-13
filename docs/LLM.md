@@ -46,20 +46,22 @@ make -C llama.cpp -j4 # runs make in subdir with 4 processes
 
 #### Download and convert weights
 
-We show how to use [OpenLLaMa](https://github.com/openlm-research/open_llama) instead of Meta's LLaMa.
-You might need to install the `git-lfs` package.
+The easiest way is to use TheBloke's repositories on HuggingFace.
+ - https://huggingface.co/TheBloke/Llama-2-7B-GGML
+ - https://huggingface.co/TheBloke/Llama-2-13B-GGML
+ - ...
+
+For reference, the commands I used early on to convert Llama-1 and OpenLLama:
 ```
-git clone https://huggingface.co/openllmplayground/openalpaca_3b_600bt_preview
 python3 llama.cpp/convert.py models/7B/
 ./llama.cpp/quantize models/7B/ggml-model-f16.bin models/7B/ggml-model-q4_0.bin q4_0
 ```
-This download script support all sizes of LLaMa: 7B, 13B, 30B, and 65B (download them all at once with `7B,13B,30B,65B` as 1st argument).
 
 #### Install python binding
 
 It will install its own `llama.cpp` so you only need to preserve the models.
 ```
-!pip install -y git+https://github.com/tristanvdb/llama-cpp-python@choice-dev
+pip install -y git+https://github.com/tristanvdb/llama-cpp-python@choice-dev
 ```
 
 ### OpenAI API

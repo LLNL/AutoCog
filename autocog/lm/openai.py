@@ -24,7 +24,7 @@ class OpenAI(LM):
     @staticmethod
     def create(**kwargs):
         return kwargs
-    
+
     def __call_with_retry(self, **kwargs):
         retry = self.retries
         delta = self.delta
@@ -78,7 +78,7 @@ class OpenAI(LM):
             if len(same_tokens) == 0:
                 break
             logit_bias = { c : 100 for c in set(token_by_idx[0]) }
-            
+
             res = self.__call_with_retry(model=self.model, prompt=prompt, max_tokens=1, temperature=self.temperature, logit_bias=logit_bias)
 
             assert len(res.choices) == 1
@@ -92,5 +92,5 @@ class OpenAI(LM):
             prompt += res
             same_tokens = same_tokens[1:]
             token_by_idx = token_by_idx[1:]
-        
+
         raise Exception("Should not be reached")
