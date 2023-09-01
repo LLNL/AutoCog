@@ -36,33 +36,24 @@ llm = TfLM(**tflm, completion_kwargs={ 'max_new_tokens' : 20 })
 
 ### Llama.cpp
 
-#### Clone and build llama.cpp
-
+We currently use a modified version of the `llama-cpp-python` package.
+It provides python bindings and will build `LLama.cpp`.
+Our changes permit us to implement `greedy` completion (returnning full logprob).
 ```
-git clone https://github.com/ggerganov/llama.cpp.git
-python3 -m pip install -r llama.cpp/requirements.txt
-make -C llama.cpp -j4 # runs make in subdir with 4 processes
+pip install -y git+https://github.com/tristanvdb/llama-cpp-python@choice-dev
 ```
 
-#### Download and convert weights
-
-The easiest way is to use TheBloke's repositories on HuggingFace.
+The easiest way to get the models is to use TheBloke's GGML repositories on HuggingFace.
  - https://huggingface.co/TheBloke/Llama-2-7B-GGML
  - https://huggingface.co/TheBloke/Llama-2-13B-GGML
  - ...
 
-For reference, the commands I used early on to convert Llama-1 and OpenLLama:
 ```
-python3 llama.cpp/convert.py models/7B/
-./llama.cpp/quantize models/7B/ggml-model-f16.bin models/7B/ggml-model-q4_0.bin q4_0
+from autocog.lm import Llama
+llama = Llama.create(model_path="", n_ctx=4096)
+llm = Llama(**llama, completion_kwargs={ 'max_tokens' : 20, 'temperature' : 0.4 })
 ```
 
-#### Install python binding
-
-It will install its own `llama.cpp` so you only need to preserve the models.
-```
-pip install -y git+https://github.com/tristanvdb/llama-cpp-python@choice-dev
-```
 
 ### OpenAI API
 
