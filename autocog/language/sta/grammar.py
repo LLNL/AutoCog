@@ -66,9 +66,12 @@ annot_stmt__     = annot_stmt WS
 annot_stmt       = path_expr WS AS WS string_expr SC
 annot_expr       = ANNOTATE WS string_expr SC
 
-field_decls      = (WS field_decl)*
-field_decl       = identifier array_slice? WS ( is_format_field / is_record_field / field_detail ) WS
-field_detail     = LCB WS ( is_format_field / is_record_field ) ( WS (annot_expr/annot_block) )? WS RCB
+field_decls      = field_decl__*
+field_decl__     = WS field_decl
+field_decl       = field_name WS field_defn WS
+field_name       = identifier array_slice?
+field_defn       = is_format_field / is_record_field / field_detail
+field_detail     = LCB WS ( is_format_field / is_record_field ) ( WS ( annot_expr / annot_block ) )? WS RCB
 is_format_field  = IS WS (repeat_def / select_def / enum_def / regex_string / type_ref) WS SC
 is_record_field  = IS WS LCB field_decls WS RCB
 

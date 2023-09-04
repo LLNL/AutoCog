@@ -67,7 +67,7 @@ class Call(ASTNode):
 
 class TypeRef(ASTNode):
     name:   str
-    params: List[Tuple[Optional[str],Expression]]
+    params: List[Tuple[Optional[str],Expression]] = []
 
     def gvtree(self):
         yield from super().gvtree()
@@ -110,7 +110,7 @@ class Annotation(ASTNode):
         yield ("label",None,self.label)
     
 class Record(ASTNode):
-    fields:      List["Field"]    = []
+    fields:      List["Field"]
     annotations: List[Annotation] = []
 
     def gvtree(self):
@@ -122,7 +122,7 @@ class Record(ASTNode):
 
 class Field(Declaration):
     type:       Union[Record,TypeRef]
-    annotation: str
+    annotation: Optional[str] = None
 
     def gvtree(self):
         yield from super().gvtree()

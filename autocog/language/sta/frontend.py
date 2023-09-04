@@ -1,7 +1,7 @@
 from parsimonious.nodes import NodeVisitor
 
 from .grammar import grammar
-from .ast import Program, Variable, Value, Reference, Prompt
+from .ast import ASTNode, Program, Variable, Value, Reference, Prompt, Field, TypeRef
 
 class Visitor(NodeVisitor):
     def visit_program(self, node, visited_children):
@@ -80,14 +80,60 @@ class Visitor(NodeVisitor):
         assert len(visited_children) == 18
         name = visited_children[2]
         assert name['kind'] == 'identifier'
-        prompt =  Prompt(name=name['text'])
-        variables = visited_children[5]
         fields = visited_children[7]
-        channels = visited_children[9]
-        flows = visited_children[11]
-        returns = visited_children[13]
-        annots = visited_children[15]
+        assert fields['kind'] == 'field_decls', f"{fields}"
+        assert len(fields['children']) > 0
+        prompt =  Prompt(
+            name=name['text'],
+            fields=fields['children']
+        )
+        # variables = visited_children[5]
+        # channels = visited_children[9]
+        # flows = visited_children[11]
+        # returns = visited_children[13]
+        # annots = visited_children[15]
         return prompt
+
+    def visit_is_record_field(self, node, visited_children):
+        assert len(visited_children) == 6
+        return visited_children[3]
+
+    def visit_field_decl__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[1]
+
+    def visit_field_decl(self, node, visited_children):
+        assert len(visited_children) == 4
+        field_name = visited_children[0]
+        assert field_name['kind'] == 'field_name', f"{field_name}"
+        assert len(field_name['children']) == 2
+        name = field_name['children'][0]
+        assert name['kind'] == "identifier"
+        arr_slice = field_name['children'][1] # TODO
+        field_defn = visited_children[2]
+        if isinstance(field_defn, ASTNode):
+            return Field(name=name['text'], type=field_defn)
+        else:
+            assert field_defn['kind'] == 'field_detail', f"{field_defn}"
+            raise NotImplementedError('Field with details (annotation)')
+
+    def visit_field_defn(self, node, visited_children):
+        assert len(visited_children) == 1
+        return visited_children[0]
+
+    def visit_is_format_field(self, node, visited_children):
+        assert len(visited_children) == 5
+        visited_children = visited_children[2]['children']
+        assert len(visited_children) == 1
+        return visited_children[0]
+
+    def visit_type_ref(self, node, visited_children):
+        assert len(visited_children) == 3
+        name = visited_children[0]
+        assert name['kind'] == "identifier"
+        typeref = TypeRef(name=name['text'])
+        # TODO type param
+        return typeref
 
     # def visit_(self, node, visited_children):
     #     assert len(visited_children) == 1
