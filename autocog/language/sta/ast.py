@@ -43,10 +43,10 @@ class Value(Expression):
     def gvlbl(self):
         if isinstance(self.value, int):
             return self.value
-        elif is_fstring:
-            return f'f"{self.value}"'
+        elif self.is_fstring:
+            return f'f\\"{self.value}\\"'
         else:
-            return f'"{self.value}"'
+            return f'\\"{self.value}\\"'
 
 class Reference(Expression):
     name: str
@@ -65,14 +65,28 @@ class Call(ASTNode):
     def gvtree(self):
         yield from super().gvtree()
 
-class TypeRef(ASTNode):
-    name:   str
-    params: List[Tuple[Optional[str],Expression]] = []
+class Argument(ASTNode):
+    value: Expression
+    name: Optional[str] = None
 
     def gvtree(self):
         yield from super().gvtree()
-        for (p,(lbl,expr)) in enumerate(self.params):
-            raise NotImplementedError()
+        yield ("value",None,self.value)
+
+    def gvlbl(self):
+        if self.name:
+            return f"{self.__class__.__name__}\\n{self.name}"
+        else:
+            return f"{self.__class__.__name__}"
+
+class TypeRef(ASTNode):
+    name:   str
+    arguments: List[Argument] = []
+
+    def gvtree(self):
+        yield from super().gvtree()
+        for (i,arg) in enumerate(self.arguments):
+            yield ("argument",i,arg)
 
 class Declaration(ASTNode):
     name: str
@@ -81,7 +95,7 @@ class Declaration(ASTNode):
         yield from super().gvtree()
 
     def gvlbl(self):
-        return f"{self.__class__.__name__}: {self.name}"
+        return f"{self.__class__.__name__}//n{self.name}"
 
 class Variable(Declaration):
     initializer: Optional[Expression]

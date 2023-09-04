@@ -1,7 +1,7 @@
 from parsimonious.nodes import NodeVisitor
 
 from .grammar import grammar
-from .ast import ASTNode, Program, Variable, Value, Reference, Prompt, Field, TypeRef
+from .ast import ASTNode, Program, Variable, Value, Reference, Prompt, Field, TypeRef, Argument
 
 class Visitor(NodeVisitor):
     def visit_program(self, node, visited_children):
@@ -70,6 +70,18 @@ class Visitor(NodeVisitor):
         assert len(visited_children) == 0
         return Value(value=int(node.text))
 
+    def visit_string_literal(self, node, visited_children):
+        assert len(visited_children) == 1
+        return visited_children[0]
+
+    def visit_val_string(self, node, visited_children):
+        assert len(visited_children) == 3
+        return Value(value=visited_children[1]['text'])
+
+    def visit_fmt_string(self, node, visited_children):
+        assert len(visited_children) == 3
+        return Value(value=visited_children[1]['text'], is_fstring=True)
+
     def visit_refexpr(self, node, visited_children):
         assert len(visited_children) == 2
         node = visited_children[1]
@@ -131,9 +143,48 @@ class Visitor(NodeVisitor):
         assert len(visited_children) == 3
         name = visited_children[0]
         assert name['kind'] == "identifier"
-        typeref = TypeRef(name=name['text'])
-        # TODO type param
-        return typeref
+        arguments = visited_children[2]
+        if 'children' in arguments:
+            assert len(arguments['children']) == 1
+            arguments = arguments['children'][0]
+            assert arguments['kind'] == 'param_list'
+            arguments = arguments['children']
+        else:
+            arguments = []
+        return TypeRef(name=name['text'], arguments=arguments)
+
+    def visit_param_list_cont(self, node, visited_children):
+        assert len(visited_children) == 4
+        return visited_children[3]
+
+    def visit_param_list(self, node, visited_children):
+        assert len(visited_children) == 2
+        children = [ visited_children[0] ]
+        if 'children' in visited_children[1]:
+            assert len(visited_children[1]['children']) == 1
+            assert visited_children[1]['children'][0]['kind'] == 'param_list'
+            children += visited_children[1]['children'][0]['children']
+        return { 'kind' : node.expr_name, 'children' : children }
+
+    def visit_type_ref_param(self, node, visited_children):
+        assert len(visited_children) == 5
+        return visited_children[2]
+
+    def visit_param_expr(self, node, visited_children):
+        assert len(visited_children) == 2
+        name = visited_children[0]
+        if 'children' in name:
+            assert len(name['children']) == 1
+            name = name['children'][0]
+            assert name['kind'] == 'identifier'
+            name = name['text']
+        else:
+            name = None
+        return Argument(value=visited_children[1], name=name)
+
+    def visit_param_expr_kw(self, node, visited_children):
+        assert len(visited_children) == 4
+        return visited_children[0]
 
     # def visit_(self, node, visited_children):
     #     assert len(visited_children) == 1
