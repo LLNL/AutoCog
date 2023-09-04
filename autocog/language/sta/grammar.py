@@ -49,9 +49,10 @@ kwarg_map_stmt   = MAP  WS path_expr
 bind_stmt        = BIND WS path_expr WS bind_as_stmt WS SC
 bind_as_stmt     = AS WS path_expr
 
-flow_block       = FLOW WS LCB WS ( flow_stmt WS )+ RCB
+flow_block       = FLOW WS LCB WS flow_stmt__+ RCB
+flow_stmt__      = flow_stmt WS
 flow_stmt        = TO WS identifier flow_limit? WS flow_as_stmt? SC
-flow_limit       = LSB WS int_literal WS RSB
+flow_limit       = LSB WS expression WS RSB
 flow_as_stmt     = AS WS string_literal
 
 return_stmt      = RETURN WS ( return_block / return_expr )
@@ -59,20 +60,21 @@ return_block     = LCB WS return_as_stmt__? return_from_stmt__+ RCB
 return_as_stmt__ = return_as_stmt WS
 return_as_stmt   = AS WS string_literal WS SC
 return_from_stmt__ = return_from_stmt WS
-return_from_stmt = FROM WS path_expr WS SC
+return_from_stmt = FROM WS path_expr ret_rename__ WS SC
+ret_rename__     = ret_rename?
+ret_rename       = WS AS WS expression
 return_expr      = path_expr WS SC
 
 annot_block      = ANNOTATE WS LCB WS annot_stmt__+ RCB
 annot_stmt__     = annot_stmt WS
-annot_stmt       = path_expr WS AS WS string_expr SC
-annot_expr       = ANNOTATE WS string_expr SC
+annot_stmt       = path_expr WS AS WS expression SC
+annot_expr       = ANNOTATE WS expression SC
 
 field_decls      = field_decl__*
 field_decl__     = WS field_decl
 field_decl       = field_name WS field_defn WS
 field_name       = identifier array_slice?
-field_defn       = is_format_field / is_record_field / field_detail
-field_detail     = LCB WS ( is_format_field / is_record_field ) ( WS ( annot_expr / annot_block ) )? WS RCB
+field_defn       = is_format_field / is_record_field
 is_format_field  = IS WS (repeat_def / select_def / enum_def / regex_string / type_ref) WS SC
 is_record_field  = IS WS LCB field_decls WS RCB
 
@@ -104,11 +106,13 @@ expression       = value_expr / refexpr
 
 value_expr       = string_literal / int_literal__
 
-string_expr_list = string_expr ( WS COMMA WS string_expr )*
+string_expr_list = string_expr string_expr_list__
+string_expr_list__ = string_expr_list_cont?
+string_expr_list_cont = WS COMMA WS string_expr_list
 string_expr      = string_literal / identifier
 string_literal   = val_string / fmt_string
 
-refexpr          = "@" identifier
+refexpr          = DOLLAR identifier
 
 # REGEX Nodes
 
@@ -164,4 +168,5 @@ PERIOD = "."
 COMMA  = ","
 COLON  = ":"
 SC     = ";"
+DOLLAR = "$"
 """)

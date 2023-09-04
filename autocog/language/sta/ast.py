@@ -56,7 +56,7 @@ class Reference(Expression):
         yield from super().gvtree()
 
     def gvlbl(self):
-        return f'@{self.name}'
+        return f'${self.name}'
 
 class Slice(ASTNode):
     start: Expression
@@ -123,6 +123,21 @@ class TypeRef(ASTNode):
     def gvlbl(self):
         return f"{self.__class__.__name__}\\n{self.name}"
 
+class EnumType(ASTNode):
+    kind: str
+    source: Union[Path,List[Expression]]
+
+    def gvtree(self):
+        yield from super().gvtree()
+        if isinstance(self.source, Path):
+            yield ("path",None,self.source)
+        else:
+            for (i,src) in enumerate(self.source):
+                yield ("value",i,src)
+
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.kind}"
+
 class Declaration(ASTNode):
     name: str
 
@@ -160,18 +175,14 @@ class Annotation(ASTNode):
     
 class Record(ASTNode):
     fields:      List["Field"]
-    annotations: List[Annotation] = []
 
     def gvtree(self):
         yield from super().gvtree()
         for (i,n) in enumerate(self.fields):
             yield ("field",i,n)
-        for (i,n) in enumerate(self.annotations):
-            yield ("annotation",i,n)
 
 class Field(Declaration):
-    type:       Union[Record,TypeRef]
-    annotation: Optional[str] = None
+    type: Union[Record,TypeRef,EnumType]
 
     def gvtree(self):
         yield from super().gvtree()
@@ -179,15 +190,21 @@ class Field(Declaration):
 
 class Format(Declaration,Scope):
     type:       TypeRef
-    annotation: str
+    annotation: Optional[Expression] = None
 
     def gvtree(self):
         yield from super().gvtree()
         yield ("type",None,self.type)
-    
+        if self.annotation is not None:
+            yield ("annotation",None,self.annotation)
+
 class Struct(Declaration,Scope,Record):
+    annotations: List[Annotation] = []
+
     def gvtree(self):
         yield from super().gvtree()
+        for (i,n) in enumerate(self.annotations):
+            yield ("annotation",i,n)
 
 class Channel(ASTNode):
     target: Path
@@ -200,32 +217,45 @@ class Channel(ASTNode):
 
 class RetField(ASTNode):
     field: Path
-    rename: Optional[str]
+    rename: Optional[Expression] = None
 
     def gvtree(self):
         yield from super().gvtree()
         yield ("field",None,self.field)
+        if self.rename is not None:
+            yield ("rename",None,self.rename)
 
 class RetBlock(ASTNode):
     fields: List[RetField] = []
-    alias:  Optional[str]  = None
+    alias:  Optional[Expression]  = None
 
     def gvtree(self):
         yield from super().gvtree()
         for (i,n) in enumerate(self.fields):
             yield ("field",i,n)
+        if self.alias is not None:
+            yield ("alias",None,self.alias)
 
 class Flow(ASTNode):
     prompt: str
-    alias:  Optional[str] = None
+    limit:  Optional[Expression] = None
+    alias:  Optional[Expression] = None
 
     def gvtree(self):
         yield from super().gvtree()
+        if self.limit is not None:
+            yield ("limit",None,self.limit)
+        if self.alias is not None:
+            yield ("alias",None,self.alias)
+
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.prompt}"
 
 class Prompt(Struct):
     channels: List[Channel]      = []
     flows:    List[Flow]         = []
     returns:  Optional[RetBlock] = None
+    annotations: List[Annotation] = []
 
     def gvtree(self):
         yield from super().gvtree()
@@ -235,6 +265,8 @@ class Prompt(Struct):
             yield ("flow",i,n)
         if self.returns is not None:
             yield ("return",None,self.returns)
+        for (i,n) in enumerate(self.annotations):
+            yield ("annotation",i,n)
 
 class Program(Scope):
     formats:     List[Format]     = []

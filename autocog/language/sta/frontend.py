@@ -1,7 +1,7 @@
 from parsimonious.nodes import NodeVisitor
 
 from .grammar import grammar
-from .ast import ASTNode, Program, Variable, Value, Reference, Prompt, Field, TypeRef, Argument, Channel, Path, Step, Slice
+from .ast import *
 
 class Visitor(NodeVisitor):
     def visit_program(self, node, visited_children):
@@ -108,15 +108,23 @@ class Visitor(NodeVisitor):
         else:
             channels = []
 
+        flows = visited_children[11]
+        if flows is not None:
+            assert flows['kind'] == 'flow_block', f"{flows}"
+            flows = flows['children']
+        else:
+            flows = []
+        
+
         prompt = Prompt(
             name=name['text'],
             fields=fields['children'],
-            channels=channels
+            channels=channels,
+            returns=visited_children[13],
+            flows=flows
         )
         # variables = visited_children[5]
-        # channels = visited_children[9]
-        # flows = visited_children[11]
-        # returns = visited_children[13]
+        # 
         # annots = visited_children[15]
         return prompt
 
@@ -138,14 +146,26 @@ class Visitor(NodeVisitor):
         arr_slice = field_name['children'][1] # TODO
         field_defn = visited_children[2]
         if isinstance(field_defn, ASTNode):
-            return Field(name=name['text'], type=field_defn)
+            type = field_defn
+        elif field_defn['kind'] == 'field_decls':
+            type = Record(fields=field_defn['children'])
         else:
-            assert field_defn['kind'] == 'field_detail', f"{field_defn}"
-            raise NotImplementedError('Field with details (annotation)')
+            raise Exception(f"{field_defn}")
+        return Field(name=name['text'], type=type)
 
     def visit_field_defn(self, node, visited_children):
         assert len(visited_children) == 1
         return visited_children[0]
+
+    def visit_field_detail(self, node, visited_children):
+        assert len(visited_children) == 7
+        type = visited_children[2]
+        assert len(type['children']) == 1
+        type = type['children'][0]
+        annot = visited_children[4]
+        assert len(annot['children']) == 1
+        annot = annot['children'][0]
+        return { 'kind' : node.expr_name, 'children' : [ type, annot ] }
 
     def visit_is_format_field(self, node, visited_children):
         assert len(visited_children) == 5
@@ -217,10 +237,32 @@ class Visitor(NodeVisitor):
 
     def visit_channel_stmt(self, node, visited_children):
         assert len(visited_children) == 5
+        source = visited_children[4]['children'][0]
+        assert isinstance(source, Path) or isinstance(source, Call), f"{source}"
         return Channel(
             target=visited_children[2],
-            source=visited_children[4]['children'][0]
+            source=source
         )
+
+    def visit_path_expr(self, node, visited_children):
+        assert len(visited_children) == 1
+        return visited_children[0]
+
+    def visit_input_path_expr(self, node, visited_children):
+        assert len(visited_children) == 2
+        path = visited_children[1]
+        assert isinstance(path, Path), f"{path}"
+        path.is_input = True
+        return path
+
+    def visit_global_path_expr(self, node, visited_children):
+        assert len(visited_children) == 3
+        path = visited_children[2]
+        assert isinstance(path, Path), f"{path}"
+        path.prompt = visited_children[0]
+        assert path.prompt['kind'] == 'identifier', f"{path.prompt}"
+        path.prompt = path.prompt['text']
+        return path
 
     def visit_local_path_expr(self, node, visited_children):
         assert len(visited_children) == 2
@@ -275,6 +317,147 @@ class Visitor(NodeVisitor):
             start=visited_children[2],
             stop=visited_children[3]
         )
+
+    def visit_annot_expr(self, node, visited_children):
+        assert len(visited_children) == 4
+        return visited_children[2]
+
+    def visit_string_expr(self, node, visited_children):
+        assert len(visited_children) == 1
+        return visited_children[0]
+
+    def visit_repeat_def(self, node, visited_children):
+        assert len(visited_children) == 5
+        return EnumType(kind='repeat', source=visited_children[3])
+
+    def visit_select_def(self, node, visited_children):
+        assert len(visited_children) == 5
+        return EnumType(kind='select', source=visited_children[3])
+
+    def visit_enum_def(self, node, visited_children):
+        assert len(visited_children) == 5
+        source = visited_children[3]
+        assert source['kind'] == 'string_expr_list'
+        return EnumType(kind='select', source=source['children'])
+    
+    def visit_string_expr_list__(self, node, visited_children):
+        if len(visited_children) == 1:
+            return visited_children[0]
+        else:
+            return None
+
+    def visit_string_expr_list_cont(self, node, visited_children):
+        assert len(visited_children) == 4
+        return visited_children[3]
+
+    def visit_string_expr_list(self, node, visited_children):
+        assert len(visited_children) == 2
+        children = [ visited_children[0] ]
+        if visited_children[1] is not None:
+            children += visited_children[1]['children']
+        return { 'kind' : node.expr_name, 'children' : children }
+
+    def visit_from_stmt(self, node, visited_children):
+        assert len(visited_children) == 5
+        return visited_children[2]
+
+    def visit_return_stmt__(self, node, visited_children):
+        if len(visited_children) == 1:
+            return visited_children[0]
+        else:
+            return None
+
+    def visit_return_stmt(self, node, visited_children):
+        assert len(visited_children) == 3
+        visited_children = visited_children[2]['children']
+        assert len(visited_children) == 1
+        return visited_children[0]
+
+    def visit_return_expr(self, node, visited_children):
+        assert len(visited_children) == 3
+        path = visited_children[0]
+        assert isinstance(path, Path), f"{path}"
+        return RetBlock(fields=[RetField(field=path)])
+
+    def visit_return_block(self, node, visited_children):
+        assert len(visited_children) == 5
+        alias = visited_children[2]
+        if 'children' in alias:
+            assert len(alias['children']) == 1
+            alias = alias['children'][0]
+        else:
+            alias = None
+        fields = visited_children[3]['children']
+        return RetBlock(alias=alias, fields=fields)
+
+    def visit_return_as_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_return_as_stmt(self, node, visited_children):
+        assert len(visited_children) == 5
+        return visited_children[2]
+
+    def visit_return_from_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_return_from_stmt(self, node, visited_children):
+        assert len(visited_children) == 6
+        return RetField(
+            field=visited_children[2],
+            rename=visited_children[3]
+        )
+
+    def visit_ret_rename__(self, node, visited_children):
+        if len(visited_children) == 1:
+            return visited_children[0]
+        else:
+            return None
+
+    def visit_ret_rename(self, node, visited_children):
+        assert len(visited_children) == 4
+        return visited_children[3]
+
+    def visit_flow_block__(self, node, visited_children):
+        if len(visited_children) == 1:
+            return visited_children[0]
+        else:
+            return None
+
+    def visit_flow_block(self, node, visited_children):
+        assert len(visited_children) == 6
+        return { 'kind' : node.expr_name, 'children' : visited_children[4]['children'] }
+
+    def visit_flow_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_flow_stmt(self, node, visited_children):
+        assert len(visited_children) == 7
+        prompt = visited_children[2]
+        assert prompt['kind'] == 'identifier'
+        limit = visited_children[3]
+        if 'children' in limit:
+            assert len(limit['children']) == 1
+            limit = limit['children'][0]
+        else:
+            limit = None
+        alias = visited_children[5]
+        if 'children' in alias:
+            assert len(alias['children']) == 1
+            alias = alias['children'][0]
+        else:
+            alias = None
+        return Flow( prompt=prompt['text'], limit=limit, alias=alias )
+
+    def visit_flow_limit(self, node, visited_children):
+        assert len(visited_children) == 5
+        return visited_children[2]
+
+    def visit_flow_as_stmt(self, node, visited_children):
+        assert len(visited_children) == 3
+        return visited_children[2]
 
     # def visit_(self, node, visited_children):
     #     assert len(visited_children) == 1
