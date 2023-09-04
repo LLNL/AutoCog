@@ -8,7 +8,7 @@ declaration      = def_decl / arg_decl / format_decl / struct_decl / prompt_decl
 
 def_decl         = DEFINE WS identifier WS initializer WS SC
 arg_decl         = ARGUMENT WS identifier WS initializer? WS SC
-initializer      = EQUAL WS value_expr
+initializer      = EQUAL WS expression
 
 var_decls        = var_decl*
 var_decl         = WS ( def_decl / arg_decl )
@@ -30,7 +30,8 @@ return_stmt__    = return_stmt?
 annot_block__    = annot_block?
 
 
-channel_block    = CHANNEL WS LCB WS ( channel_stmt WS )+ RCB
+channel_block    = CHANNEL WS LCB WS channel_stmt__+ RCB
+channel_stmt__   = channel_stmt WS
 channel_stmt     = TO WS local_path_expr WS ( from_stmt / call_block )
 from_stmt        = FROM WS path_expr WS SC
 call_block       = CALL WS LCB WS
@@ -75,7 +76,9 @@ field_detail     = LCB WS ( is_format_field / is_record_field ) ( WS ( annot_exp
 is_format_field  = IS WS (repeat_def / select_def / enum_def / regex_string / type_ref) WS SC
 is_record_field  = IS WS LCB field_decls WS RCB
 
-array_slice      = LSB WS int_literal ( WS COLON WS int_literal )? WS RSB
+array_slice      = LSB WS expression array_slice_cont WS RSB
+array_slice_cont = array_slice__?
+array_slice__    = WS COLON WS expression
 
 repeat_def       = REPEAT WS LPAR path_expr RPAR
 select_def       = SELECT WS LPAR path_expr RPAR
@@ -86,7 +89,7 @@ type_ref_param   = LT WS param_list WS GT
 
 param_list       = param_expr param_list_cont*
 param_list_cont  = WS COMMA WS param_list
-param_expr       = param_expr_kw? value_expr
+param_expr       = param_expr_kw? expression
 param_expr_kw    = identifier WS EQUAL  WS
 
 path_expr        = global_path_expr / local_path_expr / input_path_expr
@@ -97,7 +100,9 @@ sub_path_expr    = path_step sub_path_expr__?
 sub_path_expr__  = PERIOD sub_path_expr
 path_step        = identifier array_slice?
 
-value_expr       = string_literal / int_literal__ / refexpr
+expression       = value_expr / refexpr
+
+value_expr       = string_literal / int_literal__
 
 string_expr_list = string_expr ( WS COMMA WS string_expr )*
 string_expr      = string_literal / identifier

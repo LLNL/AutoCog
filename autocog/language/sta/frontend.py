@@ -1,7 +1,7 @@
 from parsimonious.nodes import NodeVisitor
 
 from .grammar import grammar
-from .ast import ASTNode, Program, Variable, Value, Reference, Prompt, Field, TypeRef, Argument
+from .ast import ASTNode, Program, Variable, Value, Reference, Prompt, Field, TypeRef, Argument, Channel, Path, Step, Slice
 
 class Visitor(NodeVisitor):
     def visit_program(self, node, visited_children):
@@ -58,6 +58,10 @@ class Visitor(NodeVisitor):
         else:
             return None
 
+    def visit_expression(self, node, visited_children):
+        assert len(visited_children) == 1
+        return visited_children[0]
+
     def visit_value_expr(self, node, visited_children):
         assert len(visited_children) == 1
         return visited_children[0]
@@ -92,12 +96,22 @@ class Visitor(NodeVisitor):
         assert len(visited_children) == 18
         name = visited_children[2]
         assert name['kind'] == 'identifier'
+
         fields = visited_children[7]
         assert fields['kind'] == 'field_decls', f"{fields}"
         assert len(fields['children']) > 0
-        prompt =  Prompt(
+
+        channels = visited_children[9]
+        if channels is not None:
+            assert channels['kind'] == 'channel_block', f"{channels}"
+            channels = channels['children']
+        else:
+            channels = []
+
+        prompt = Prompt(
             name=name['text'],
-            fields=fields['children']
+            fields=fields['children'],
+            channels=channels
         )
         # variables = visited_children[5]
         # channels = visited_children[9]
@@ -185,6 +199,82 @@ class Visitor(NodeVisitor):
     def visit_param_expr_kw(self, node, visited_children):
         assert len(visited_children) == 4
         return visited_children[0]
+
+    def visit_channel_block__(self, node, visited_children):
+        if len(visited_children) == 1:
+            return visited_children[0]
+        else:
+            return None
+
+    def visit_channel_block(self, node, visited_children):
+        assert len(visited_children) == 6
+        visited_children = visited_children[4]['children']
+        return { 'kind' : node.expr_name, 'children' : visited_children }
+
+    def visit_channel_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_channel_stmt(self, node, visited_children):
+        assert len(visited_children) == 5
+        return Channel(
+            target=visited_children[2],
+            source=visited_children[4]['children'][0]
+        )
+
+    def visit_local_path_expr(self, node, visited_children):
+        assert len(visited_children) == 2
+        path = visited_children[1]
+        assert isinstance(path, Path), f"{path}"
+        return path
+
+    def visit_sub_path_expr__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[1]
+
+    def visit_sub_path_expr(self, node, visited_children):
+        assert len(visited_children) == 2
+        if 'children' in visited_children[1]:
+            assert len(visited_children[1]['children']) == 1
+            path = visited_children[1]['children'][0]
+            assert isinstance(path, Path), f"{path}"
+        else:
+            path = Path()
+        step = visited_children[0]
+        assert isinstance(step, Step), f"{step}"
+        path.steps = [step] + path.steps
+        return path
+
+    def visit_path_step(self, node, visited_children):
+        assert len(visited_children) == 2
+        name = visited_children[0]
+        assert name['kind'] == "identifier"
+        slice = visited_children[1]
+        if 'children' in slice:
+            assert len(slice['children']) == 1
+            slice = slice['children'][0]
+            assert isinstance(slice,Slice), f"{slice}"
+        else:
+            slice = None
+        return Step(name=name['text'], slice=slice)
+
+    def visit_array_slice_cont(self, node, visited_children):
+        if len(visited_children) > 0:
+            assert len(visited_children) == 1
+            return visited_children[0]
+        else:
+            return None
+
+    def visit_array_slice__(self, node, visited_children):
+        assert len(visited_children) == 4
+        return visited_children[3]
+
+    def visit_array_slice(self, node, visited_children):
+        assert len(visited_children) == 6
+        return Slice(
+            start=visited_children[2],
+            stop=visited_children[3]
+        )
 
     # def visit_(self, node, visited_children):
     #     assert len(visited_children) == 1

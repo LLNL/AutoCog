@@ -18,6 +18,7 @@ class ASTNode(BaseModel):
         tag = f"n_{len(nodes)}"
         nodes.update({ tag : self.gvlbl() })
         for (lbl,idx,node) in self.gvtree():
+            assert node is not None, f"self={self}"
             ctag = node.toGraphVizRec(nodes, edges)
             edges.append(( tag, ctag, lbl if idx is None else f"{lbl}[{idx}]" ))
         return tag
@@ -57,9 +58,40 @@ class Reference(Expression):
     def gvlbl(self):
         return f'@{self.name}'
 
-class Path(ASTNode):
+class Slice(ASTNode):
+    start: Expression
+    stop: Optional[Expression] = None
+
     def gvtree(self):
         yield from super().gvtree()
+        yield ("start",None,self.start)
+        if self.stop is not None:
+            yield ("stop",None,self.stop)
+
+class Step(ASTNode):
+    name: str
+    slice: Optional[Slice] = None
+
+    def gvtree(self):
+        yield from super().gvtree()
+        if self.slice is not None:
+            yield ("slice",None,self.slice)
+
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.name}"
+    
+class Path(ASTNode):
+    steps: List[Step] = []
+    is_input: bool = False
+    prompt: Optional[str] = None
+
+    def gvtree(self):
+        yield from super().gvtree()
+        for (i,step) in enumerate(self.steps):
+            yield ("step",i,step)
+
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.prompt}\\n{self.is_input}"
 
 class Call(ASTNode):
     def gvtree(self):
@@ -88,6 +120,9 @@ class TypeRef(ASTNode):
         for (i,arg) in enumerate(self.arguments):
             yield ("argument",i,arg)
 
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.name}"
+
 class Declaration(ASTNode):
     name: str
 
@@ -95,7 +130,7 @@ class Declaration(ASTNode):
         yield from super().gvtree()
 
     def gvlbl(self):
-        return f"{self.__class__.__name__}//n{self.name}"
+        return f"{self.__class__.__name__}\\n{self.name}"
 
 class Variable(Declaration):
     initializer: Optional[Expression]
