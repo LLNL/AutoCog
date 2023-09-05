@@ -172,7 +172,7 @@ class Annotation(ASTNode):
         yield from super().gvtree()
         yield ("what",None,self.what)
         yield ("label",None,self.label)
-    
+
 class Record(ASTNode):
     fields:      List["Field"]
 
@@ -255,7 +255,6 @@ class Prompt(Struct):
     channels: List[Channel]      = []
     flows:    List[Flow]         = []
     returns:  Optional[RetBlock] = None
-    annotations: List[Annotation] = []
 
     def gvtree(self):
         yield from super().gvtree()
@@ -265,8 +264,6 @@ class Prompt(Struct):
             yield ("flow",i,n)
         if self.returns is not None:
             yield ("return",None,self.returns)
-        for (i,n) in enumerate(self.annotations):
-            yield ("annotation",i,n)
 
 class Program(Scope):
     formats:     List[Format]     = []

@@ -16,8 +16,14 @@ class Visitor(NodeVisitor):
         for child in visited_children:
             if isinstance(child, Variable):
                 program.variables.append(child)
+            elif isinstance(child, Format):
+                program.formats.append(child)
+            elif isinstance(child, Struct):
+                program.structs.append(child)
             elif isinstance(child, Prompt):
                 program.prompts.append(child)
+            elif isinstance(child, dict) and child['kind'] == 'flow_block':
+                program.flows += child['children']
             else:
                 raise Exception(f"Unknown: {child}")
         return program
@@ -92,10 +98,76 @@ class Visitor(NodeVisitor):
         assert node['kind'] == 'identifier'
         return Reference(name=node['text'])
 
+    def visit_struct_decl(self, node, visited_children):
+        assert len(visited_children) == 12
+
+        name = visited_children[2]
+        assert name['kind'] == 'identifier'
+
+        variables = visited_children[5]
+        if variables is not None and 'children' in variables:
+            assert variables['kind'] == 'var_decls', f"{variables}"
+            variables = variables['children']
+        else:
+            variables = []
+
+        fields = visited_children[7]
+        assert fields['kind'] == 'field_decls', f"{fields}"
+        assert len(fields['children']) > 0
+
+        annots = visited_children[9]
+        if annots is not None and 'children' in annots:
+            annots = annots['children'][0]
+            assert annots['kind'] == 'annot_block', f"{annots}"
+            annots = annots['children']
+        else:
+            annots = []
+
+        return Struct(
+            name=name['text'],
+            variables=variables,
+            fields=fields['children'],
+            annotations=annots
+        )
+
+    def visit_format_decl(self, node, visited_children):
+        assert len(visited_children) == 12
+
+        name = visited_children[2]
+        assert name['kind'] == 'identifier'
+
+        variables = visited_children[5]
+        if variables is not None and 'children' in variables:
+            assert variables['kind'] == 'var_decls', f"{variables}"
+            variables = variables['children']
+        else:
+            variables = []
+
+        annot = visited_children[9]
+        if 'children' in annot:
+            annot = annot['children'][0]
+        else:
+            annot = None
+
+        return Format(
+            name=name['text'],
+            variables=variables,
+            type=visited_children[7],
+            annotation=annot
+        )
+
     def visit_prompt_decl(self, node, visited_children):
         assert len(visited_children) == 18
         name = visited_children[2]
         assert name['kind'] == 'identifier'
+
+        variables = visited_children[5]
+        # print(f"variables={variables}")
+        if variables is not None and 'children' in variables:
+            assert variables['kind'] == 'var_decls', f"{variables}"
+            variables = variables['children']
+        else:
+            variables = []
 
         fields = visited_children[7]
         assert fields['kind'] == 'field_decls', f"{fields}"
@@ -114,18 +186,23 @@ class Visitor(NodeVisitor):
             flows = flows['children']
         else:
             flows = []
-        
+
+        annots = visited_children[15]
+        if annots is not None:
+            assert annots['kind'] == 'annot_block', f"{annots}"
+            annots = annots['children']
+        else:
+            annots = []
 
         prompt = Prompt(
             name=name['text'],
+            variables=variables,
             fields=fields['children'],
             channels=channels,
             returns=visited_children[13],
-            flows=flows
+            flows=flows,
+            annotations=annots
         )
-        # variables = visited_children[5]
-        # 
-        # annots = visited_children[15]
         return prompt
 
     def visit_is_record_field(self, node, visited_children):
@@ -459,6 +536,53 @@ class Visitor(NodeVisitor):
         assert len(visited_children) == 3
         return visited_children[2]
 
+    def visit_annot_block__(self, node, visited_children):
+        if len(visited_children) == 1:
+            return visited_children[0]
+        else:
+            return None
+
+    def visit_annot_block(self, node, visited_children):
+        assert len(visited_children) == 6
+        return { 'kind' : node.expr_name, 'children' : visited_children[4]['children'] }
+
+    def visit_annot_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_annot_stmt(self, node, visited_children):
+        assert len(visited_children) == 6
+        return Annotation(
+            what=visited_children[0],
+            label=visited_children[4]
+        )
+
+    def visit_var_decl(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[1]['children'][0]
+        
+
+    def visit_def_decl(self, node, visited_children):
+        assert len(visited_children) == 7
+        name = visited_children[2]
+        assert name['kind'] == 'identifier'
+        return Variable( name=name['text'], initializer=visited_children[4] )
+
+    def visit_arg_decl(self, node, visited_children):
+        assert len(visited_children) == 7
+        name = visited_children[2]
+        assert name['kind'] == 'identifier'
+        initializer = visited_children[4]
+        if 'children' in initializer:
+            initializer = initializer['children'][0]
+        else:
+            initializer = None
+        return Variable( name=name['text'], initializer=initializer, is_argument=True )
+
+    def visit_initializer(self, node, visited_children):
+        assert len(visited_children) == 3
+        return visited_children[2]
+
     # def visit_(self, node, visited_children):
     #     assert len(visited_children) == 1
     #     pass
@@ -469,6 +593,9 @@ class Visitor(NodeVisitor):
         else:
             return { 'kind' : node.expr_name, 'text' : node.text }
 
-def frontend(program:str):
+def frontend(program:str, rule=None):
     visitor = Visitor()
-    return visitor.visit(grammar.parse(program))
+    G = grammar
+    if rule is not None:
+        G = G[rule]
+    return visitor.visit(G.parse(program))

@@ -29,7 +29,6 @@ flow_block__     = flow_block?
 return_stmt__    = return_stmt?
 annot_block__    = annot_block?
 
-
 channel_block    = CHANNEL WS LCB WS channel_stmt__+ RCB
 channel_stmt__   = channel_stmt WS
 channel_stmt     = TO WS local_path_expr WS ( from_stmt / call_block )
@@ -46,8 +45,7 @@ entry_stmt       = ENTRY  WS identifier WS SC
 kwarg_stmt       = KWARG  WS identifier WS ( kwarg_from_stmt / kwarg_map_stmt ) WS SC
 kwarg_from_stmt  = FROM WS path_expr
 kwarg_map_stmt   = MAP  WS path_expr
-bind_stmt        = BIND WS path_expr WS bind_as_stmt WS SC
-bind_as_stmt     = AS WS path_expr
+bind_stmt        = BIND WS identifier WS AS WS identifier WS SC
 
 flow_block       = FLOW WS LCB WS flow_stmt__+ RCB
 flow_stmt__      = flow_stmt WS
