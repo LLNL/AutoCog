@@ -34,18 +34,21 @@ channel_stmt__   = channel_stmt WS
 channel_stmt     = TO WS local_path_expr WS ( from_stmt / call_block )
 from_stmt        = FROM WS path_expr WS SC
 call_block       = CALL WS LCB WS
-                       ( extern_stmt WS )?
-                       ( entry_stmt WS )?
-                       ( kwarg_stmt WS )*
-                       ( bind_stmt  WS )*
+                       extern_stmt__?
+                       entry_stmt__?
+                       kwarg_stmt__*
+                       bind_stmt__*
                    RCB
+
+extern_stmt__    = extern_stmt WS
+entry_stmt__     = entry_stmt WS
+kwarg_stmt__     = kwarg_stmt WS
+bind_stmt__      = bind_stmt  WS
 
 extern_stmt      = EXTERN WS identifier WS SC
 entry_stmt       = ENTRY  WS identifier WS SC
-kwarg_stmt       = KWARG  WS identifier WS ( kwarg_from_stmt / kwarg_map_stmt ) WS SC
-kwarg_from_stmt  = FROM WS path_expr
-kwarg_map_stmt   = MAP  WS path_expr
-bind_stmt        = BIND WS identifier WS AS WS identifier WS SC
+kwarg_stmt       = KWARG  WS identifier WS (FROM/MAP) WS path_expr WS SC
+bind_stmt        = BIND WS sub_path_expr WS AS WS identifier WS SC
 
 flow_block       = FLOW WS LCB WS flow_stmt__+ RCB
 flow_stmt__      = flow_stmt WS

@@ -583,6 +583,75 @@ class Visitor(NodeVisitor):
         assert len(visited_children) == 3
         return visited_children[2]
 
+    def visit_call_block(self, node, visited_children):
+        assert len(visited_children) == 9
+
+        extern = visited_children[4]
+        extern = extern['children'][0] if 'children' in extern else None
+
+        entry = visited_children[5]
+        entry = entry['children'][0] if 'children' in entry else None
+
+        kwargs = visited_children[6]
+        kwargs = kwargs['children'] if 'children' in kwargs else []
+
+        binds = visited_children[7]
+        binds = binds['children'] if 'children' in binds else []
+
+        return Call( extern=extern, entry=entry, kwargs=kwargs, binds=binds )
+
+    def visit_extern_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_extern_stmt(self, node, visited_children):
+        assert len(visited_children) == 5
+        node = visited_children[2]
+        assert node['kind'] == 'identifier'
+        return node['text']
+
+    def visit_entry_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_entry_stmt(self, node, visited_children):
+        assert len(visited_children) == 5
+        node = visited_children[2]
+        assert node['kind'] == 'identifier'
+        return node['text']
+
+    def visit_kwarg_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_kwarg_stmt(self, node, visited_children):
+        assert len(visited_children) == 9
+        name = visited_children[2]
+        assert name['kind'] == 'identifier'
+
+        mapped = visited_children[4]
+        assert len(mapped['children']) == 1
+        mapped = mapped['children'][0]['text'] == 'MAP'
+
+        return Kwarg(
+            name=name['text'],
+            source=visited_children[6],
+            mapped=mapped
+        )
+
+    def visit_bind_stmt__(self, node, visited_children):
+        assert len(visited_children) == 2
+        return visited_children[0]
+
+    def visit_bind_stmt(self, node, visited_children):
+        assert len(visited_children) == 9
+        target = visited_children[6]
+        assert target['kind'] == 'identifier'
+        return Bind(
+            source=visited_children[2],
+            target=target['text']
+        )
+
     # def visit_(self, node, visited_children):
     #     assert len(visited_children) == 1
     #     pass

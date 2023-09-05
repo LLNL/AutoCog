@@ -93,9 +93,44 @@ class Path(ASTNode):
     def gvlbl(self):
         return f"{self.__class__.__name__}\\n{self.prompt}\\n{self.is_input}"
 
-class Call(ASTNode):
+class Kwarg(ASTNode):
+    name: str
+    source: Path
+    mapped: bool = False
+
     def gvtree(self):
         yield from super().gvtree()
+        yield ("source",None,self.source)
+
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.name}\\n{self.mapped}"
+
+class Bind(ASTNode):
+    source: Path
+    target: str
+
+    def gvtree(self):
+        yield from super().gvtree()
+        yield ("source",None,self.source)
+
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.target}"
+    
+class Call(ASTNode):
+    extern: Optional[str] = None
+    entry:  Optional[str] = None
+    kwargs: List[Kwarg]   = []
+    binds:  List[Bind]    = []
+
+    def gvtree(self):
+        yield from super().gvtree()
+        for (i,n) in enumerate(self.kwargs):
+            yield ("kwarg",i,n)
+        for (i,n) in enumerate(self.binds):
+            yield ("bind",i,n)
+
+    def gvlbl(self):
+        return f"{self.__class__.__name__}\\n{self.extern}\\n{self.entry}"
 
 class Argument(ASTNode):
     value: Expression
