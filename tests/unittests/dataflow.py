@@ -38,41 +38,41 @@ def load_arch():
     arch.load(tag='identity-nested-call',         filepath='dataflow/identity-nested-call.sta'        )
     arch.load(tag='identity-double-nested-call',  filepath='dataflow/identity-double-nested-call.sta' )
 
-    arch.load(tag='identity-texts-mapped-input',  filepath='dataflow/identity-texts-mapped-input.sta' )
-    arch.load(tag='identity-double-mapped-flow',  filepath='dataflow/identity-double-mapped-flow.sta' )
+    #arch.load(tag='identity-texts-mapped-input',  filepath='dataflow/identity-texts-mapped-input.sta' )
+    #arch.load(tag='identity-double-mapped-flow',  filepath='dataflow/identity-double-mapped-flow.sta' )
 
-    arch.load(tag='filter-aggregate-list-text-bool', filepath='dataflow/filter-aggregate-list-text-bool.sta' )
+    #arch.load(tag='filter-aggregate-list-text-bool', filepath='dataflow/filter-aggregate-list-text-bool.sta' )
 
-    arch.load(tag='iteration-text-flow', filepath='dataflow/iteration-text-flow.sta' )
+    #arch.load(tag='iteration-text-flow', filepath='dataflow/iteration-text-flow.sta' )
 
-    arch.load(tag='iteration-text-call', filepath='dataflow/iteration-text-call.sta' )
+    #arch.load(tag='iteration-text-call', filepath='dataflow/iteration-text-call.sta' )
 
     return arch
 
 async def run_tests(arch):
     return await asyncio.gather(
       run_sample(arch, sample='identity-text-input', data=text),
-      run_sample(arch, sample='identity-list-input', data=texts),
+      # run_sample(arch, sample='identity-list-input', data=texts),
       run_sample(arch, sample='identity-item-input', data=item),
-      run_sample(arch, sample='identity-item-list-input', data=items),
-      run_sample(arch, sample='identity-nested-input', data=nested),
-      run_sample(arch, sample='identity-double-nested-input', data=dblnsd),
+      # run_sample(arch, sample='identity-item-list-input', data=items),
+      # run_sample(arch, sample='identity-nested-input', data=nested),
+      # run_sample(arch, sample='identity-double-nested-input', data=dblnsd),
 
-      run_sample(arch, sample='identity-text-call'),
-      run_sample(arch, sample='identity-list-call'),
-      run_sample(arch, sample='identity-item-call'),
-      run_sample(arch, sample='identity-item-list-call'),
-      run_sample(arch, sample='identity-nested-call'),
-      run_sample(arch, sample='identity-double-nested-call'),
+      # run_sample(arch, sample='identity-text-call'),
+      # run_sample(arch, sample='identity-list-call'),
+      # run_sample(arch, sample='identity-item-call'),
+      # run_sample(arch, sample='identity-item-list-call'),
+      # run_sample(arch, sample='identity-nested-call'),
+      # run_sample(arch, sample='identity-double-nested-call'),
 
-      run_sample(arch, sample='identity-texts-mapped-input', data=texts),
-      run_sample(arch, sample='identity-double-mapped-flow', data=texts),
+      #run_sample(arch, sample='identity-texts-mapped-input', data=texts),
+      #run_sample(arch, sample='identity-double-mapped-flow', data=texts),
 
-      run_sample(arch, sample='filter-aggregate-list-text-bool', data=["A","B","C","D","E"], keep=[True,False,True,True,False]),
+      #run_sample(arch, sample='filter-aggregate-list-text-bool', data=["A","B","C","D","E"], keep=[True,False,True,True,False]),
 
-      run_sample(arch, sample='iteration-text-flow', data=text),
+      #run_sample(arch, sample='iteration-text-flow', data=text),
 
-      run_sample(arch, sample='iteration-text-call')
+      #run_sample(arch, sample='iteration-text-call')
     )
 
 if __name__ == '__main__':

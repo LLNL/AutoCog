@@ -3,6 +3,6 @@ header:
 entry(identity):
 
 prompt(identity):
-- target(data)
+- target(data) source(?data)
 > data:
 __exit(data):

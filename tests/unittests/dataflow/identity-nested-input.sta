@@ -3,7 +3,7 @@ header:
 entry(identity):
 
 prompt(identity):
-- target(data)
+- target(data) source(?data)
 > data[3]:
 > > field1:
 > > field2[3]:

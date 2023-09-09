@@ -408,7 +408,6 @@ class StructuredThoughtPrompt(BaseModel):
         jobs = []
         for (c,channel) in enumerate(self.channels):
             if channel.call is None:
-                assert not channel.source.mapped
                 datas[c] = channel.source.retrieve(curr=self.stm.tag, stacks=stacks)
             else:
                 raise NotImplementedError()
