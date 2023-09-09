@@ -224,7 +224,7 @@ class Field(Declaration):
         yield ("type",None,self.type)
 
 class Format(Declaration,Scope):
-    type:       TypeRef
+    type:       Union[TypeRef,EnumType]
     annotation: Optional[Expression] = None
 
     def gvtree(self):

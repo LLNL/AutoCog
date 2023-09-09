@@ -18,10 +18,10 @@ class Visitor(NodeVisitor):
                 program.variables.append(child)
             elif isinstance(child, Format):
                 program.formats.append(child)
-            elif isinstance(child, Struct):
-                program.structs.append(child)
             elif isinstance(child, Prompt):
                 program.prompts.append(child)
+            elif isinstance(child, Struct):
+                program.structs.append(child)
             elif isinstance(child, dict) and child['kind'] == 'flow_block':
                 program.flows += child['children']
             else:
@@ -415,7 +415,7 @@ class Visitor(NodeVisitor):
         assert len(visited_children) == 5
         source = visited_children[3]
         assert source['kind'] == 'string_expr_list'
-        return EnumType(kind='select', source=source['children'])
+        return EnumType(kind='enum', source=source['children'])
     
     def visit_string_expr_list__(self, node, visited_children):
         if len(visited_children) == 1:
