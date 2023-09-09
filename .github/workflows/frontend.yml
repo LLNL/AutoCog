@@ -1,4 +1,4 @@
-name: pip
+name: frontend
 
 on:
   push:
@@ -26,4 +26,4 @@ jobs:
     - name: Install
       run: pip install .
     - name: Check
-      run: cd / ; python -c "import autocog ; print(autocog.__file__)"
+      run: cd tests/language ; python -m frontend

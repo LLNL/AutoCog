@@ -2,7 +2,8 @@
 =============================
 
 [![PIP](https://github.com/LLNL/AutoCog/workflows/pip/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
-[![STA Dataflow](https://github.com/LLNL/AutoCog/workflows/dataflow/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
+[![Frontend](https://github.com/LLNL/AutoCog/workflows/frontend/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
+[![Dataflow](https://github.com/LLNL/AutoCog/workflows/dataflow/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
 
 AutoCog primary goal is to provide the essential components for constructing comprehensive programming languages that can be effectively executed by language models (LMs). Through the utilization of these programming languages, it will becomes feasible to implement symbolic AI algorithms on top of LM.
 
