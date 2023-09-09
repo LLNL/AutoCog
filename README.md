@@ -7,6 +7,11 @@
 
 AutoCog primary goal is to provide the essential components for constructing comprehensive programming languages that can be effectively executed by language models (LMs). Through the utilization of these programming languages, it will becomes feasible to implement symbolic AI algorithms on top of LM.
 
+> [!WARNING]
+> As of version v0.3, the priority is to build the actual programming model.
+> See [share/sta](https://github.com/LLNL/AutoCog/tree/master/share/sta) for progress, it will hopefully be ready by the end of October.
+> The proto-language is deprecated and mostly broken. I might go fix it if anyone ask for it.
+
 [![Experiments for version 1 of the CGO-24 paper](./share/cgo24/v1/composite.png)](./share/cgo24/v1)
 
 At present, AutoCog offers Structured Thoughts Automaton (STA) as its sole Programming Model. STA's language is inherently low-level and may present challenges in terms of maintenance. For those interested in delving deeper, we have also made available a [preprint](https://arxiv.org/abs/2306.10196) of our submission to CGO-24. See [share/cgo24/v1](./share/cgo24/v1) for the artifacts of that paper.
