@@ -34,6 +34,9 @@ class Expression(ASTNode):
     def gvtree(self):
         yield from super().gvtree()
 
+    def eval(self, values:Dict[str,Any]):
+        raise NotImplementedError()
+
 class Value(Expression):
     value: Union[int,str]
     is_fstring: bool = False
@@ -49,6 +52,12 @@ class Value(Expression):
         else:
             return f'\\"{self.value}\\"'
 
+    def eval(self, values:Dict[str,Any]):
+        if self.is_fstring:
+            return self.value.format(**values)
+        else:
+            return self.value
+
 class Reference(Expression):
     name: str
 
@@ -57,6 +66,12 @@ class Reference(Expression):
 
     def gvlbl(self):
         return f'${self.name}'
+
+    def eval(self, values:Dict[str,Any]):
+        if self.name in values:
+            return values[self.name]
+        else:
+            raise Exception(f"Cannot find {self.name} in {','.join(values.keys())}") 
 
 class Slice(ASTNode):
     start: Expression
