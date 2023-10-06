@@ -232,10 +232,13 @@ class Record(ASTNode):
             yield ("field",i,n)
 
 class Field(Declaration):
+    range: Optional[Slice]
     type: Union[Record,TypeRef,EnumType]
 
     def gvtree(self):
         yield from super().gvtree()
+        if self.range is not None:
+            yield ("range",None,self.range)
         yield ("type",None,self.type)
 
 class Format(Declaration,Scope):

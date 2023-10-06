@@ -220,7 +220,13 @@ class Visitor(NodeVisitor):
         assert len(field_name['children']) == 2
         name = field_name['children'][0]
         assert name['kind'] == "identifier"
-        arr_slice = field_name['children'][1] # TODO
+        arr_slice = field_name['children'][1]
+        if 'children' in arr_slice:
+            assert len(arr_slice['children']) == 1
+            arr_slice = arr_slice['children'][0]
+        else:
+            arr_slice = None
+        
         field_defn = visited_children[2]
         if isinstance(field_defn, ASTNode):
             type = field_defn
@@ -228,7 +234,7 @@ class Visitor(NodeVisitor):
             type = Record(fields=field_defn['children'])
         else:
             raise Exception(f"{field_defn}")
-        return Field(name=name['text'], type=type)
+        return Field(name=name['text'], type=type, range=arr_slice)
 
     def visit_field_defn(self, node, visited_children):
         assert len(visited_children) == 1
