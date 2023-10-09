@@ -2,10 +2,10 @@ Structured Thought Automaton
 ============================
 
 Working on language design:
- - [frontend.ipynb](Frontend): actual tests have been moved to [Unit-tests -- Frontend](../../tests/language/frontend.py)
- - [backend.ipynb](Compile): working on backend and Prompt Tree format (aka object or bytes-code style abstraction)
- - [execute.ipynb](Execute): working on the execution model
- - [samples.ipynb](Samples): design samples, should be semantically correct while not always making sense (using extra variables or missing annotations to test features)
+ - [Frontend](frontend.ipynb): actual tests have been moved to [Unit-tests -- Frontend](../../tests/language/frontend.py)
+ - [Backend](backend.ipynb): working on backend and Prompt Tree format (aka object or bytes-code style abstraction)
+ - [Execute](execute.ipynb): working on the execution model
+ - [Samples](samples.ipynb): design samples, semantically correct while not always making sense (using extra variables or missing annotations to test features)
 
 ![Full flow of STA+: from language to execution](./figure.png)
  

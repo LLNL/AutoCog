@@ -17,5 +17,6 @@ We introduce a low-level language to write "cognitive program" for this executio
 bibtex...
 ```
 
-Submitted to:
- * CGO 24 (1st round): PENDING
+Submition
+ * CGO 24 (1st round): Rejected, review were not too bad
+ * No time to revise it for 2nd round....

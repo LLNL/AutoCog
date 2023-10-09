@@ -43,9 +43,9 @@ Our changes permit us to implement `greedy` completion (returnning full logprob)
 pip install -y git+https://github.com/tristanvdb/llama-cpp-python@choice-dev
 ```
 
-The easiest way to get the models is to use TheBloke's GGML repositories on HuggingFace.
- - https://huggingface.co/TheBloke/Llama-2-7B-GGML
- - https://huggingface.co/TheBloke/Llama-2-13B-GGML
+The easiest way to get the models is to use TheBloke's GGUF repositories on HuggingFace.
+ - https://huggingface.co/TheBloke/Llama-2-7B-GGUF
+ - https://huggingface.co/TheBloke/Llama-2-13B-GGUF
  - ...
 
 ```
