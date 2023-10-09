@@ -60,66 +60,77 @@ class Compiler(BaseModel):
 
     def resolve_type(self, type: Union[AstRecord,AstTypeRef,AstEnumType], path:List[str], values:Dict[str,Any]):
         pathname = '.'.join(path)
-        if isinstance(type, AstRecord):
-            rec_values = copy.deepcopy(values)
-            return TmpRecord(name=pathname, fields=type.fields, syntax=type, values=rec_values)
+        if isinstance(type, AstTypeRef):
 
-        elif isinstance(type, AstTypeRef):
-            refname = type.name
-            args = {}
-            for (a,arg) in enumerate(type.arguments):
-                # TODO enforce same rules as for python args/kwargs
-                refname += ':'
-                value = arg.value.eval(values=values)
-                if arg.name is not None:
-                    refname += f'{arg.name}='
-                    args.update({ arg.name : value })
-                else:
-                    args.update({ a : value })
-                refname += f'{value}'
+            if type.name == 'text':
+                length = None
+                if len(type.arguments) == 1:
+                    arg = type.arguments[0]
+                    if arg.name is not None and arg.name != 'length':
+                        raise Exception(f"Builtin format `text` expect only `length` arguments (got: {args})")
+                    length = arg.value.eval(values=values)
+                elif len(type.arguments) > 1:
+                    raise Exception(f"Builtin format `text` expect single `length` arguments (got: {args})")
+                fmt = IrCompletion(name=pathname, length=length)
+                self.program.formats.update({ pathname : fmt })
+                return fmt
 
-            if refname in self.program.formats:
-                return self.program.formats[refname]
-
-            elif refname in self.program.records:
-                return self.program.records[refname]
-
-            elif type.name in self.formats:
+            if type.name in self.formats:
                 syntax = self.formats[type.name]
-                loc_values = copy.deepcopy(values)
-                loc_values.update({}) # TODO syntax.variables
+            elif type.name in self.structs:
+                syntax = self.structs[type.name]
+            else:
+                raise Exception(f"Reference to `{type.name}` is not match as either a format or struct")
+            arguments = [ var for var in syntax.variables if var.is_argument ]
+
+            args = {}
+            kw = False
+            for (a,arg) in enumerate(type.arguments):
+                if arg.name is None:
+                    if kw:
+                        raise Exception(f"Found non-keyword argument after at least one keyword argument.")
+                    args.update({ arguments[a].name : arg.value })
+                else:
+                    kw = True
+                    args.update({ arg.name : arg.value })
+
+            loc_values = copy.deepcopy(values)
+            for arg in arguments:
+                if arg.name in args:
+                    value = args[arg.name].eval(values=loc_values)
+                else:
+                    if arg.initializer is None:
+                        raise Exception(f"Argument {arg.name} of {syntax.name} is not provided and no default was provided.")
+                    value = arg.initializer.eval(values=loc_values)
+                loc_values.update({ arg.name : value })
+
+            refname = type.name
+            if len(arguments) > 0:
+                argvals = [ f"{arg.name}={loc_values[arg.name]}" for arg in arguments ]
+                refname += '<' + ','.join(argvals) + '>'
+
+            if type.name in self.formats:
                 concrete = self.resolve_type(type=syntax.type, path=path+[refname], values=loc_values)
-                # TODO annot?
+                concrete.refname = refname
+                if syntax.annotation is not None:
+                    concrete.desc.append(syntax.annotation.eval(loc_values))
+                print(f"concrete={concrete}")
                 return concrete
 
             elif type.name in self.structs:
-                syntax = self.structs[type.name]
-                rec_values = copy.deepcopy(values)
-                rec_values.update({}) # TODO syntax.variables
-                return TmpRecord(name=pathname, fields=syntax.fields, syntax=syntax, values=rec_values)
-
-            elif type.name == 'text':
-                length = None
-                if len(args) == 1:
-                    if 0 in args:
-                        length = args[0]
-                    elif 'length' in args:
-                        length = args['length']
-                    else:
-                        raise Exception(f"Builtin format `text` expect only `length` arguments (got: {args})")
-                elif len(args) > 1:
-                    raise Exception(f"Builtin format `text` expect single `length` arguments (got: {args})")
-                fmt = IrCompletion(name=pathname, length=length, annonymous=True)
-                self.program.formats.update({ pathname : fmt })
-                return fmt
+                return TmpRecord(name=pathname, fields=syntax.fields, syntax=syntax, values=loc_values)
 
             else:
                 raise Exception(f"Unknown type: {refname}: {type}\n{self.program.formats}\n{self.formats}")
 
+        elif isinstance(type, AstRecord):
+            rec_values = copy.deepcopy(values)
+            return TmpRecord(name=pathname, fields=type.fields, syntax=type, values=rec_values)
+
         elif isinstance(type, AstEnumType):
             if type.kind == 'enum':
                 assert isinstance(type.source, list)
-                fmt = IrEnum(name=pathname, values=[ s.eval(values=values) for s in type.source ], annonymous=True)
+                fmt = IrEnum(name=pathname, values=[ s.eval(values=values) for s in type.source ])
                 self.program.formats.update({ pathname : fmt })
                 return fmt
 
@@ -129,7 +140,7 @@ class Compiler(BaseModel):
                     prompt=type.source.prompt,
                     steps=[ ( step.name, range_from_slice(step.slice, values) ) for step in type.source.steps ]
                 )
-                fmt = IrChoice(name=pathname, path=path, mode=type.kind, annonymous=True)
+                fmt = IrChoice(name=pathname, path=path, mode=type.kind)
                 self.program.formats.update({ pathname : fmt })
                 return fmt
 
@@ -171,3 +182,9 @@ class Compiler(BaseModel):
             )
             # TODO channels
             self.program.prompts.update({ prompt.name : prompt })
+
+    def summarize(self):
+        res = []
+        for (name, prompt) in self.program.prompts.items():
+            res += [ prompt.mechanics(), "--------------------", prompt.formats(), "====================" ]
+        return '\n'.join(res)

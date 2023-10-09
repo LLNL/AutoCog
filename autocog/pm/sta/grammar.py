@@ -93,7 +93,7 @@ type_ref_param   = LT WS param_list WS GT
 param_list       = param_expr param_list_cont*
 param_list_cont  = WS COMMA WS param_list
 param_expr       = param_expr_kw? expression
-param_expr_kw    = identifier WS EQUAL  WS
+param_expr_kw    = identifier WS EQUAL WS
 
 path_expr        = global_path_expr / local_path_expr / input_path_expr
 global_path_expr = identifier PERIOD sub_path_expr

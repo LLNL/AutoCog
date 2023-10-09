@@ -32,19 +32,30 @@ class Path(BaseModel):
         return res
 
 class Format(Object):
-    annonymous: bool = False
+    refname: Optional[str] = None
 
     def str(self):
         raise NotImplementedError()
 
     def label(self):
-        return self.str() if self.annonymous else self.name
+        if self.refname is None:
+            return self.str()
+        else:
+            return self.refname
 
 class Field(Object):
     depth:  int
     format: Optional[Format]
     range:  Range
     parent: Union["Prompt","Field"]
+
+    def mechanics(self):
+        indent = '> '*self.depth
+        if self.format is None:
+            record = 'record'
+        else:
+            record = self.format.label()
+        return f"{indent}{self.name}({record}){range_to_str(self.range)}: {' '.join(self.desc)}"
 
 class Record(Object):
     fields: List[Field] = []
@@ -55,6 +66,12 @@ class Channel(BaseModel):
 class Prompt(Object):
     fields:   List[Field]   = []
     channels: List[Channel] = []
+
+    def mechanics(self):
+        return '\n'.join([ fld.mechanics() for fld in self.fields ])
+
+    def formats(self):
+        return '\n'.join([ f"{fld.format.label()}: {' '.join(fld.format.desc)}" for fld in self.fields if fld.format is not None and fld.format.refname is not None ])
 
 class Program(BaseModel):
     desc:    Optional[str]    = None
@@ -76,7 +93,7 @@ class Completion(Format):
     def str(self):
         res = 'text'
         if self.length is not None:
-            res += f'({self.length})'
+            res += f'<length={self.length}>'
         return res
 
 class Enum(Format):
