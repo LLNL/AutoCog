@@ -95,7 +95,7 @@ param_list_cont  = WS COMMA WS param_list
 param_expr       = param_expr_kw? expression
 param_expr_kw    = identifier WS EQUAL WS
 
-path_expr        = global_path_expr / local_path_expr / input_path_expr
+path_expr        = UNDERSCORE / global_path_expr / local_path_expr / input_path_expr
 global_path_expr = identifier PERIOD sub_path_expr
 local_path_expr  = PERIOD sub_path_expr
 input_path_expr  = QMARK  sub_path_expr
@@ -170,4 +170,5 @@ COMMA  = ","
 COLON  = ":"
 SC     = ";"
 DOLLAR = "$"
+UNDERSCORE = "_"
 """)

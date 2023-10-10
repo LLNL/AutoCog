@@ -106,7 +106,8 @@ class Compiler(BaseModel):
 
             refname = type.name
             if len(arguments) > 0:
-                argvals = [ f"{arg.name}={loc_values[arg.name]}" for arg in arguments ]
+                # argvals = [ f"{arg.name}={loc_values[arg.name]}" for arg in arguments ]
+                argvals = [ f"{loc_values[arg.name]}" for arg in arguments ]
                 refname += '<' + ','.join(argvals) + '>'
 
             if type.name in self.formats:
@@ -114,7 +115,6 @@ class Compiler(BaseModel):
                 concrete.refname = refname
                 if syntax.annotation is not None:
                     concrete.desc.append(syntax.annotation.eval(loc_values))
-                print(f"concrete={concrete}")
                 return concrete
 
             elif type.name in self.structs:
@@ -150,10 +150,10 @@ class Compiler(BaseModel):
         else:
             raise Exception(f"Unexpected class for AST type node: {type}")
         
-    def append_fields(self, prompt: IrPrompt, fields: List[AstField], parent: Union[IrPrompt,IrField], path:List[str], values:Dict[str,Any]):
+    def append_fields(self, prompt: IrPrompt, fields: List[AstField], parent: Union[IrPrompt,IrField], ihn_path:List[str], values:Dict[str,Any]):
         depth = 1 if isinstance(parent, IrPrompt) else parent.depth + 1
         for f in fields:
-            fld_path = path+[f.name]
+            fld_path = ihn_path+[f.name]
             fmt = self.resolve_type(f.type, fld_path, values=values) # TODO accumulate values along path
             field = IrField(
                 name=f.name,
@@ -165,7 +165,12 @@ class Compiler(BaseModel):
             self.fields.update({ '.'.join(fld_path) : field })
             prompt.fields.append(field)
             if isinstance(fmt, TmpRecord):
-                self.append_fields(prompt=prompt, fields=fmt.fields, parent=field, path=fld_path, values=fmt.values)
+                self.append_fields(prompt=prompt, fields=fmt.fields, parent=field, ihn_path=fld_path, values=fmt.values)
+                if isinstance(fmt.syntax, AstStruct):
+                    for annotation in fmt.syntax.annotations:
+                        path = fld_path + [ s.name for s in annotation.what.steps ]
+                        path = '.'.join(path)
+                        self.fields[path].desc.append(annotation.label.eval(fmt.values))
 
     def compile(self, **kwargs):
         self.formats.update({ s.name : s for s in self.ast.formats })
@@ -173,18 +178,28 @@ class Compiler(BaseModel):
 
         for p in self.ast.prompts:
             prompt = IrPrompt(name=p.name)
+            values = {} # TODO from global and promt variables
             self.append_fields(
                 prompt=prompt,
                 fields=p.fields,
                 parent=prompt,
-                path=[p.name],
-                values={} # TODO from global and promt variables
+                ihn_path=[p.name],
+                values=values
             )
-            # TODO channels
             self.program.prompts.update({ prompt.name : prompt })
+            for annotation in p.annotations:
+                annot = annotation.label.eval(values)
+                if len(annotation.what.steps) > 0:
+                    path = [p.name] + [ s.name for s in annotation.what.steps ]
+                    path = '.'.join(path)
+                    self.fields[path].desc.append(annot)
+                else:
+                    prompt.desc.append(annot)
+            # TODO channels
 
     def summarize(self):
         res = []
         for (name, prompt) in self.program.prompts.items():
-            res += [ prompt.mechanics(), "--------------------", prompt.formats(), "====================" ]
+            res += [ f"--- {name} ---", prompt.header() ]
+        res.append("====================")
         return '\n'.join(res)

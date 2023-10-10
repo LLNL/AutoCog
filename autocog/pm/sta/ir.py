@@ -49,13 +49,12 @@ class Field(Object):
     range:  Range
     parent: Union["Prompt","Field"]
 
-    def mechanics(self):
-        indent = '> '*self.depth
+    def mechanics(self, indent):
         if self.format is None:
-            record = 'record'
+            record = ''
         else:
-            record = self.format.label()
-        return f"{indent}{self.name}({record}){range_to_str(self.range)}: {' '.join(self.desc)}"
+            record = '(' + self.format.label() + ')'
+        return f"{indent*self.depth}{self.name}{record}{range_to_str(self.range)}: {' '.join(self.desc)}"
 
 class Record(Object):
     fields: List[Field] = []
@@ -66,12 +65,31 @@ class Channel(BaseModel):
 class Prompt(Object):
     fields:   List[Field]   = []
     channels: List[Channel] = []
+    flows:    List[Any]     = [] # TODO Any?
 
-    def mechanics(self):
-        return '\n'.join([ fld.mechanics() for fld in self.fields ])
+    def mechanics(self, mech, indent):
+        mechs  = [ 'start:' ]
+        mechs += [ fld.mechanics(indent) for fld in self.fields ]
+        if len(self.flows) > 0:
+            mechs += [ 'next: ']
+        mechs = '\n'.join(mechs)
+        return mech + '\n```\n' + mechs + '\n```'
 
-    def formats(self):
-        return '\n'.join([ f"{fld.format.label()}: {' '.join(fld.format.desc)}" for fld in self.fields if fld.format is not None and fld.format.refname is not None ])
+    def formats(self, fmt, lst):
+        # TODO add enum, repeat, select, and text description as needed
+        # TODO next if len(self.flows) > 0
+        formats = [ fld.format for fld in self.fields if fld.format is not None and fld.format.refname is not None ]
+        if len(formats) > 0:
+            fmtstrs = []
+            for f in formats:
+                fmtstrs.append(f"{lst}{f.label()}: {f.str()}")
+                fmtstrs += [ f"  {lst}{desc}" for desc in f.desc ]
+            return '\n' + fmt + '\n' + '\n'.join(fmtstrs)
+        else:
+            return ''
+
+    def header(self, mech="You are using the folowing syntax:", indent='> ', fmt="It includes the folowing named formats:", lst='- '):
+        return ' '.join(self.desc) + '\n' + self.mechanics(mech=mech, indent=indent) + self.formats(fmt=fmt, lst=lst)
 
 class Program(BaseModel):
     desc:    Optional[str]    = None
@@ -93,7 +111,7 @@ class Completion(Format):
     def str(self):
         res = 'text'
         if self.length is not None:
-            res += f'<length={self.length}>'
+            res += f'({self.length})'
         return res
 
 class Enum(Format):
