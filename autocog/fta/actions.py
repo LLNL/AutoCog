@@ -6,8 +6,6 @@ from pydantic import BaseModel
 import uuid
 
 from .vocab import Vocab, Token
-from ...lm.choice import TokenChoiceTree
-from ...lm.local import TokenizerLM
 
 class Action(BaseModel):
     uid: str
@@ -36,7 +34,7 @@ class Text(Action):
     text: str
     tokens: List[Token]
 
-    def __init__(self, tokenizer:TokenizerLM, text:str, **kwargs):
+    def __init__(self, tokenizer, text:str, **kwargs):
         super().__init__(text=text, tokens=tokenizer.tokenize(text), **kwargs)
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
@@ -54,7 +52,7 @@ class Text(Action):
 class Choose(Action):
     choices: List[Tuple[str,List[Token]]]
 
-    def __init__(self, tokenizer:TokenizerLM, choices:List[str], **kwargs):
+    def __init__(self, tokenizer, choices:List[str], **kwargs):
         super().__init__(choices=[ ( c, tokenizer.tokenize(c) ) for c in choices ], **kwargs)
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
@@ -74,7 +72,7 @@ class Complete(Action):
     length: int = 1
     stop: Optional[List[Tuple[str,List[Token]]]] = None
 
-    def __init__(self, tokenizer:TokenizerLM, vocab:Optional[Union[Vocab,Dict[str,Any]]]=None, stop: Optional[List[str]] = None, **kwargs):
+    def __init__(self, tokenizer, vocab:Optional[Union[Vocab,Dict[str,Any]]]=None, stop: Optional[List[str]] = None, **kwargs):
         if stop is not None:
             stop = [ ( s, tokenizer.tokenize(s) ) for s in stop ]
         if vocab is None:

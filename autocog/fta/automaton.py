@@ -5,9 +5,7 @@ from pydantic import BaseModel
 
 from .vocab import Token
 from .actions import Action, Choose
-from ...lm.lm import LM
-
-from pydantic_numpy import NDArrayFp32
+from ..lm.lm import LM
 
 class FiniteTokenTree(BaseModel):
     token: Optional[Token] = None

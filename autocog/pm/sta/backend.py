@@ -41,7 +41,7 @@ def range_from_slice(slice: Optional[AstSlice], values:Dict[str,Any]):
     stop  = start if slice.stop is None else slice.stop.eval(values)
     return (start, stop)
 
-class Compiler(BaseModel):
+class Backend(BaseModel):
     formats: Dict[str,AstFormat] = {}
     structs: Dict[str,AstStruct] = {}
     fields:  Dict[str,IrField]   = {}
@@ -196,10 +196,3 @@ class Compiler(BaseModel):
                 else:
                     prompt.desc.append(annot)
             # TODO channels
-
-    def summarize(self):
-        res = []
-        for (name, prompt) in self.program.prompts.items():
-            res += [ f"--- {name} ---", prompt.header() ]
-        res.append("====================")
-        return '\n'.join(res)
