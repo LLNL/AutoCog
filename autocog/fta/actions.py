@@ -26,10 +26,11 @@ class Action(BaseModel):
         pass
 
     def toGraphVizTag(self):
-        return 'n_'+self.uid.replace('-','_')
+        return 'n_'+self.uid.replace('-','_').replace('.','_').replace('[','_').replace(']','_')
 
-    def toGraphVizNode(self):
-        return f'{self.toGraphVizTag()} [label="{self.toGraphVizLabel()}", shape="{self.toGraphVizShape()}"];'
+    def toGraphVizNode(self, label_with_uid:bool=False):
+        label = self.uid if label_with_uid else self.toGraphVizLabel()
+        return f'{self.toGraphVizTag()} [label="{label}", shape="{self.toGraphVizShape()}"];'
 
 class Text(Action):
     text: str
@@ -89,4 +90,4 @@ class Complete(Action):
         return 'ellipse'
 
     def toGraphVizLabel(self):
-        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel() if self.vocab is not None else ''}\nstop={', '.join(map(lambda x: x[0], self.stop))}\n"
+        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel() if self.vocab is not None else ''}\nstop={'' if self.stop is None else ', '.join(map(lambda x: x[0], self.stop))}\n"

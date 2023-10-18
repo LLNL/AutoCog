@@ -36,10 +36,10 @@ class FiniteThoughtAutomaton(BaseModel):
         self.greedy_rec(lm=lm, prompt=header, root=root, action=self.actions[entry], min_branch=min_branch, max_branch=max_branch, tok_clip=tok_clip)
         return root
 
-    def toGraphViz(self):
+    def toGraphViz(self, label_with_uid:bool=False):
         dotstr = ""
         for act in self.actions.values():
-            dotstr += act.toGraphVizNode() + '\n'
+            dotstr += act.toGraphVizNode(label_with_uid=label_with_uid) + '\n'
         for act in self.actions.values():
             stags = list(set([ None if s is None else self.actions[s].toGraphVizTag() for s in act.successors ]))
             if len(stags) == 1:

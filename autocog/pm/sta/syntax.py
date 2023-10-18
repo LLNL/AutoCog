@@ -45,54 +45,58 @@ class Syntax(BaseModel):
             (fid,fcnt) = stack[-1]
             field = prompt.fields[fid]
 
-            print(f"field.depth={field.depth}")
+            # print(f"field.depth={field.depth}")
             assert field.depth == len(stack), f"field.name={field.name} field.depth={field.depth} stack={stack}"
 
             path = field_path_from_stack(prompt.fields, stack)
-            print(f"path={path}")
+            # print(f"path={path}")
             
-            uid = f'text.{path}'
-            text = field.mechanics(self.prompt_indent)
-            text = fta.create(uid=uid, cls=Text, text=text)
-            current.successors.append(text)
+            act_text = fta.create(uid=f'text.{path}', cls=Text, text=field.mechanics(self.prompt_indent))
+            act_next = fta.create(uid=f'next.{path}', cls=Text, text='\n')
 
             if field.format is None:
-                uid = f'next.{path}'
-                next = fta.create(uid=uid, cls=Text, text='\n')
-                text.successors.append(next)
-                current = next
+                act_data = None
 
             elif isinstance(field.format, Completion):
-                uid = f'data.{path}'
-                data = fta.create(uid=uid, cls=Complete, length=field.format.length)
-                text.successors.append(data)
-                uid = f'next.{path}'
-                next = fta.create(uid=uid, cls=Text, text='\n')
-                data.successors.append(next)
-                current = next
+                act_data = fta.create(uid=f'data.{path}', cls=Complete, length=field.format.length)
 
             elif isinstance(field.format, Enum) or  isinstance(field.format, Choice):
                 choices = field.format.values if isinstance(field.format, Enum) else []
-                uid = f'data.{path}'
-                data = fta.create(uid=uid, cls=Choose, choices=choices)
-                text.successors.append(data)
-                uid = f'next.{path}'
-                next = fta.create(uid=uid, cls=Text, text='\n')
-                data.successors.append(next)
-                current = next
+                act_data = fta.create(uid=f'data.{path}', cls=Choose, choices=choices)
 
             else:
                 raise Exception(f"Unexpected: field.format={field.formats}")
 
+            if act_data is None:
+                act_text.successors.append(act_next.uid)
+            else:
+                act_text.successors.append(act_data.uid)
+                act_data.successors.append(act_next.uid)
+
+            # TODO case of range[0] == 0 ??
+            current.successors.append(act_text.uid)
+            current = act_next
+
             follow = fid + 1
             if follow < len(prompt.fields):
                 follow = prompt.fields[follow]
-                next = stack_elem(fid+1)
-                for d in range(field.depth, follow.depth-1, -1):
-                    # TODO check if range is NOT complete
-                    stack = stack[:-1]
-                stack.append(next)
+                next_depth = follow.depth-1
+                next_stack = stack_elem(fid+1)
             else:
-                stack.clear()
-            
+                next_depth = 0
+                next_stack = None
+
+            for d in range(field.depth, next_depth, -1):
+                (fid_,fcnt_) = stack[-1]
+                stack = stack[:-1]
+                head = prompt.fields[fid_]
+                if head.range is not None:
+                    if fcnt_ < head.range[1]:
+                        next_stack = (fid_,fcnt_+1)
+                        if fcnt_ >= head.range[0]:
+                            pass # TODO forward edge
+                        break
+            if next_stack is not None:
+                stack.append(next_stack)
+
         return fta
