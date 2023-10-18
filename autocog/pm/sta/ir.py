@@ -49,12 +49,15 @@ class Field(Object):
     range:  Range
     parent: Union["Prompt","Field"]
 
+    def path(self):
+        return f"{self.parent.path()}.{self.name}" if isinstance(self.parent, Field) else self.name
+
     def mechanics(self, indent):
         if self.format is None:
-            record = ''
+            fmt = ''
         else:
-            record = '(' + self.format.label() + ')'
-        return f"{indent*self.depth}{self.name}{record}{range_to_str(self.range)}: {' '.join(self.desc)}"
+            fmt = '(' + self.format.label() + ')'
+        return f"{indent*self.depth}{self.name}{fmt}{range_to_str(self.range)}:"
 
 class Record(Object):
     fields: List[Field] = []
@@ -69,7 +72,7 @@ class Prompt(Object):
 
     def mechanics(self, mech, indent):
         mechs  = [ 'start:' ]
-        mechs += [ fld.mechanics(indent) for fld in self.fields ]
+        mechs += [ fld.mechanics(indent) +  ' ' + ' '.join(fld.desc) for fld in self.fields ]
         if len(self.flows) > 0:
             mechs += [ 'next: ']
         mechs = '\n'.join(mechs)

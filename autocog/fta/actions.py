@@ -4,6 +4,7 @@ from abc import abstractmethod
 from pydantic import BaseModel
 
 import uuid
+import json
 
 from .vocab import Vocab, Token
 
@@ -32,10 +33,10 @@ class Action(BaseModel):
 
 class Text(Action):
     text: str
-    tokens: List[Token]
+    tokens: List[Token] = []
 
-    def __init__(self, tokenizer, text:str, **kwargs):
-        super().__init__(text=text, tokens=tokenizer.tokenize(text), **kwargs)
+    def __init__(self, uid:str, text:str, successors: List[str]=[]):
+        super().__init__(uid=uid, successors=successors, text=text)
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         return { self.tokens[step] : 1. } if step < len(self.tokens) else {}
@@ -47,13 +48,13 @@ class Text(Action):
         return 'rectangle'
 
     def toGraphVizLabel(self):
-        return repr(self.text)
+        return json.dumps(self.text.replace(r'\n',r'\l'))[1:-1]
 
 class Choose(Action):
     choices: List[Tuple[str,List[Token]]]
 
-    def __init__(self, tokenizer, choices:List[str], **kwargs):
-        super().__init__(choices=[ ( c, tokenizer.tokenize(c) ) for c in choices ], **kwargs)
+    def __init__(self, uid:str, choices:List[str], successors: List[str]=[]):
+        super().__init__(uid=uid, successors=successors, choices=[ ( c, [] ) for c in choices ])
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         raise NotImplementedError()
@@ -68,18 +69,15 @@ class Choose(Action):
         return '\n'.join(map(lambda x: repr(x[0]), self.choices))
 
 class Complete(Action):
-    vocab: Vocab
     length: int = 1
+    seeds: Optional[List[str]]
     stop: Optional[List[Tuple[str,List[Token]]]] = None
+    vocab: Optional[Vocab] = None
 
-    def __init__(self, tokenizer, vocab:Optional[Union[Vocab,Dict[str,Any]]]=None, stop: Optional[List[str]] = None, **kwargs):
+    def __init__(self, uid:str, length:int=1, seeds: Optional[List[str]] = None, stop: Optional[List[str]] = None, successors: List[str]=[]):
         if stop is not None:
-            stop = [ ( s, tokenizer.tokenize(s) ) for s in stop ]
-        if vocab is None:
-            vocab = Vocab(tokenizer)
-        elif isinstance(vocab,dict):
-            vocab = Vocab(tokenizer, **vocab)
-        super().__init__(stop=stop, vocab=vocab, **kwargs)
+            stop = [ ( s, [] ) for s in stop ]
+        super().__init__(uid=uid, successors=successors, length=length, stop=stop, seeds=seeds)
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         raise NotImplementedError()
@@ -91,4 +89,4 @@ class Complete(Action):
         return 'ellipse'
 
     def toGraphVizLabel(self):
-        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel()}\nstop={', '.join(map(lambda x: x[0], self.stop))}\n"
+        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel() if self.vocab is not None else ''}\nstop={', '.join(map(lambda x: x[0], self.stop))}\n"

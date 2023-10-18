@@ -13,16 +13,15 @@ class FiniteTokenTree(BaseModel):
     children: Dict[Token,"FiniteTokenTree"] = {}
 
 class FiniteThoughtAutomaton(BaseModel):
-    lm: LM
     actions: Dict[str,Action] = {}
 
     def create(self, cls, **action):
-        act = cls(tokenizer=self.lm, **action)
+        act = cls(**action)
         self.actions.update({ act.uid : act })
         return act
 
-    def greedy_rec(self, prompt:List[Token], root:FiniteTokenTree, action:Action, step:int=0, **kwargs):
-        branches = action.step(lm=self.lm, step=step, prompt=prompt, **kwargs)
+    def greedy_rec(self, lm:LM, prompt:List[Token], root:FiniteTokenTree, action:Action, step:int=0, **kwargs):
+        branches = action.step(lm=lm, step=step, prompt=prompt, **kwargs)
         for (tok,prob) in branches.items():
             tree = FiniteTokenTree(token=tok, proba=prob)
             root.children.update({tok:tree})
@@ -31,10 +30,10 @@ class FiniteThoughtAutomaton(BaseModel):
             aid = action.next(prompt=prompt)
             self.greedy_rec(prompt=prompt, root=root, action=self.actions[aid], step=0, **kwargs)
 
-    def greedy(self, entry:str, header:str='', min_branch:int=2, max_branch:int=5, tok_clip:float=.9):
-        header = self.lm.tokenize(header)
+    def greedy(self, lm: LM, entry:str, header:str='', min_branch:int=2, max_branch:int=5, tok_clip:float=.9):
+        header = lm.tokenize(header)
         root = FiniteTokenTree()
-        self.greedy_rec(prompt=header, root=root, action=self.actions[entry], min_branch=min_branch, max_branch=max_branch, tok_clip=tok_clip)
+        self.greedy_rec(lm=lm, prompt=header, root=root, action=self.actions[entry], min_branch=min_branch, max_branch=max_branch, tok_clip=tok_clip)
         return root
 
     def toGraphViz(self):
