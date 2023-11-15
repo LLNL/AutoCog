@@ -45,6 +45,7 @@ class Format(Object):
 
 class Field(Object):
     depth:  int
+    index:  int
     format: Optional[Format]
     range:  Range
     parent: Union["Prompt","Field"]

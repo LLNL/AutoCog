@@ -25,30 +25,19 @@ class Syntax(BaseModel):
 
     header_pre_post: Tuple[str,str] = ('','') # ChatLlama: header_pre_post=('[INST]\n<<SYS>>You are an expert interacting with the world using an interactive prompting system.<</SYS>>','[/INST]')
 
-    def fta(self, prompt: Prompt):
-        fta = FTA()
-        header = prompt.header(
-            mech=self.header_mechanic,
-            indent=self.prompt_indent,
-            fmt=self.header_formats,
-            lst=self.format_listing
-        )
-        current = fta.create(
-            uid='header',
-            cls=Text,
-            text=self.header_pre_post[0] + header + self.header_pre_post[1] + '\nstart:\n'
-        )
-        stack_elem = lambda fid: ( fid, None if prompt.fields[fid].range is None else 1  )
-        stack = [ stack_elem(0) ]
-        preds = []
-        while len(stack) > 0:
-            (fid,fcnt) = stack[-1]
+    def __main_sequence(self, prompt: Prompt, fta: FTA):
+        main_sequence = [ ]
+
+        stack_action = lambda fid: ( fid, None if prompt.fields[fid].range is None else 1  )
+        actions_stack = [ stack_action(0) ]
+        while len(actions_stack) > 0:
+            (fid,fcnt) = actions_stack[-1]
             field = prompt.fields[fid]
 
             # print(f"field.depth={field.depth}")
-            assert field.depth == len(stack), f"field.name={field.name} field.depth={field.depth} stack={stack}"
+            assert field.depth == len(actions_stack), f"field.name={field.name} field.depth={field.depth} actions_stack={actions_stack}"
 
-            path = field_path_from_stack(prompt.fields, stack)
+            path = field_path_from_stack(prompt.fields, actions_stack)
             # print(f"path={path}")
             
             act_text = fta.create(uid=f'text.{path}', cls=Text, text=field.mechanics(self.prompt_indent))
@@ -58,7 +47,7 @@ class Syntax(BaseModel):
                 act_data = None
 
             elif isinstance(field.format, Completion):
-                act_data = fta.create(uid=f'data.{path}', cls=Complete, length=field.format.length)
+                act_data = fta.create(uid=f'data.{path}', cls=Complete, length=field.format.length, stop=['\n'])
 
             elif isinstance(field.format, Enum) or  isinstance(field.format, Choice):
                 choices = field.format.values if isinstance(field.format, Enum) else []
@@ -68,27 +57,25 @@ class Syntax(BaseModel):
                 raise Exception(f"Unexpected: field.format={field.formats}")
 
             if act_data is None:
-                act_text.successors.append(act_next.uid)
+                fta.connect(act_text.uid, act_next.uid)
             else:
-                act_text.successors.append(act_data.uid)
-                act_data.successors.append(act_next.uid)
+                fta.connect(act_text.uid, act_data.uid)
+                fta.connect(act_data.uid, act_next.uid)
 
-            # TODO case of range[0] == 0 ??
-            current.successors.append(act_text.uid)
-            current = act_next
+            main_sequence.append( (fid, fcnt, path) )
 
             follow = fid + 1
             if follow < len(prompt.fields):
                 follow = prompt.fields[follow]
                 next_depth = follow.depth-1
-                next_stack = stack_elem(fid+1)
+                next_stack = stack_action(fid+1)
             else:
                 next_depth = 0
                 next_stack = None
 
             for d in range(field.depth, next_depth, -1):
-                (fid_,fcnt_) = stack[-1]
-                stack = stack[:-1]
+                (fid_,fcnt_) = actions_stack[-1]
+                actions_stack = actions_stack[:-1]
                 head = prompt.fields[fid_]
                 if head.range is not None:
                     if fcnt_ < head.range[1]:
@@ -97,6 +84,32 @@ class Syntax(BaseModel):
                             pass # TODO forward edge
                         break
             if next_stack is not None:
-                stack.append(next_stack)
+                actions_stack.append(next_stack)
+        
+        return main_sequence
 
+    def fta(self, prompt: Prompt):
+        fta = FTA()
+        main_sequence = self.__main_sequence(prompt, fta)
+
+        header = prompt.header(
+            mech=self.header_mechanic,
+            indent=self.prompt_indent,
+            fmt=self.header_formats,
+            lst=self.format_listing
+        )
+        current = fta.create(
+            uid='header', cls=Text,
+            text=self.header_pre_post[0] + header + self.header_pre_post[1] + '\nstart:\n'
+        )
+
+        for tgt in range(1, len(main_sequence)):
+            tgt_uid = f'text.{main_sequence[tgt][2]}'
+            for src in range(tgt-1, -1, -1):
+                src_path = main_sequence[tgt][2] if tgt > 0 else None
+                src_uid = f'next.{src_path}' if tgt > 0 else 'header'
+                fta.connect(src_uid, tgt_uid)
+
+                break # TODO actually check other that only direct predecessor
+                
         return fta

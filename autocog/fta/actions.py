@@ -72,13 +72,14 @@ class Choose(Action):
 class Complete(Action):
     length: int = 1
     seeds: Optional[List[str]]
+    forbid: Optional[List[str]] = None
     stop: Optional[List[Tuple[str,List[Token]]]] = None
     vocab: Optional[Vocab] = None
 
-    def __init__(self, uid:str, length:int=1, seeds: Optional[List[str]] = None, stop: Optional[List[str]] = None, successors: List[str]=[]):
+    def __init__(self, uid:str, length:int=1, seeds: Optional[List[str]] = None, stop: Optional[List[str]] = None, forbid: Optional[List[str]] = None, successors: List[str]=[]):
         if stop is not None:
             stop = [ ( s, [] ) for s in stop ]
-        super().__init__(uid=uid, successors=successors, length=length, stop=stop, seeds=seeds)
+        super().__init__(uid=uid, successors=successors, length=length, forbid=forbid, stop=stop, seeds=seeds)
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         raise NotImplementedError()

@@ -20,6 +20,11 @@ class FiniteThoughtAutomaton(BaseModel):
         self.actions.update({ act.uid : act })
         return act
 
+    def connect(self, src:str, tgt:str):
+        assert src in self.actions
+        assert tgt in self.actions
+        self.actions[src].successors.append(tgt)
+
     def greedy_rec(self, lm:LM, prompt:List[Token], root:FiniteTokenTree, action:Action, step:int=0, **kwargs):
         branches = action.step(lm=lm, step=step, prompt=prompt, **kwargs)
         for (tok,prob) in branches.items():

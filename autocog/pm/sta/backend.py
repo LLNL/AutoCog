@@ -152,14 +152,15 @@ class Backend(BaseModel):
         
     def append_fields(self, prompt: IrPrompt, fields: List[AstField], parent: Union[IrPrompt,IrField], ihn_path:List[str], values:Dict[str,Any]):
         depth = 1 if isinstance(parent, IrPrompt) else parent.depth + 1
-        for f in fields:
-            fld_path = ihn_path+[f.name]
-            fmt = self.resolve_type(f.type, fld_path, values=values) # TODO accumulate values along path
+        for f,fld in enumerate(fields):
+            fld_path = ihn_path+[fld.name]
+            fmt = self.resolve_type(fld.type, fld_path, values=values) # TODO accumulate values along path
             field = IrField(
-                name=f.name,
+                name=fld.name,
                 format=None if isinstance(fmt, TmpRecord) else fmt,
-                range=range_from_slice(f.range, values),
+                range=range_from_slice(fld.range, values),
                 depth=depth,
+                index=f,
                 parent=parent
             )
             self.fields.update({ '.'.join(fld_path) : field })
