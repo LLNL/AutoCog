@@ -50,9 +50,18 @@ class Field(Object):
     range:  Range
     parent: Union["Prompt","Field"]
 
+    def tag(self):
+        return f"{self.name}_{self.depth}_{self.index}"
+
     def path(self):
         return f"{self.parent.path()}.{self.name}" if isinstance(self.parent, Field) else self.name
 
+    def is_list(self):
+        return self.range is not None
+
+    def is_record(self):
+        return self.format is None
+    
     def mechanics(self, indent):
         if self.format is None:
             fmt = ''
