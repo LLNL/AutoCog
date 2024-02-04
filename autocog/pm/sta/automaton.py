@@ -57,6 +57,9 @@ class ConcreteState(BaseModel):
     def index(self):
         return ','.join(map(str,self.indices))
 
+    def path(self):
+        return list(zip(self.abstract.parents(),self.indices))
+
 class Automaton(BaseModel):
     prompt: IrPrompt
     abstracts: Dict[str,AbstractState] = {}
@@ -99,7 +102,7 @@ class Automaton(BaseModel):
 
         return self
 
-    def build_concrete_v1_rec(self, abstract:AbstractState, indices:List[int]=[0], indent=0):
+    def build_concrete_rec(self, abstract:AbstractState, indices:List[int]=[0], indent=0):
         curr = abstract.tag()
         current = abstract.field
         depth = abstract.depth()
@@ -165,7 +168,7 @@ class Automaton(BaseModel):
             else:
                 assert abstract.tag() == abstract.flow.tag()
                 new_indices[-1] += 1
-            next = self.build_concrete_v1_rec(abstract=abstract.flow, indices=new_indices, indent=indent+1)
+            next = self.build_concrete_rec(abstract=abstract.flow, indices=new_indices, indent=indent+1)
             concrete.flows.append(next)
 
         if exits:
@@ -177,7 +180,7 @@ class Automaton(BaseModel):
                 new_indices[-1] += 1
             else:
                 new_indices[-1] = 0
-            next = self.build_concrete_v1_rec(abstract=abstract.exit, indices=new_indices, indent=indent+1)
+            next = self.build_concrete_rec(abstract=abstract.exit, indices=new_indices, indent=indent+1)
             concrete.exits.append(next)
 
         ###########################################
@@ -219,8 +222,8 @@ class Automaton(BaseModel):
             exits = todos
         return closure
     
-    def build_concrete_v1(self):
-        self.build_concrete_v1_rec(abstract=self.abstracts['root'])
+    def build_concrete(self):
+        self.build_concrete_rec(abstract=self.abstracts['root'])
 
         for (tag, state) in self.concretes.items():
             if len(state.flows) > 0:
@@ -287,92 +290,6 @@ class Automaton(BaseModel):
                     pred.successors.append(e)
             state.exits.clear()
 
-    def build_concrete_rec(self, abstract:AbstractState, indices:List[int], path:List[ConcreteState], indent=0):
-        print(f"{'>   '*indent} abstract: {abstract.tag()}")
-        print(f"{'>   '*indent} indices: {indices}")
-        for i in range(len(path)):
-            print(f"{'>   '*indent}   path[{i}]: {path[i].tag()}")
-
-        ctag = ConcreteState.make_tag(abstract=abstract, indices=indices)
-        print(f"{'>   '*indent}  ctag = {ctag}")
-        visited = ctag in self.concretes
-
-        if visited:
-            print(f"{'>   '*indent}  FOUND: {ctag}")
-            concrete = self.concretes[ctag]
-        else:
-            concrete = ConcreteState(abstract=abstract, indices=indices)
-            self.concretes.update({ ctag : concrete })
-        
-        count = indices[-1]
-        if abstract.field is None:
-            is_list  = False
-            is_record = True
-        else:
-            is_list   = abstract.field.is_list()
-            is_record = abstract.field.is_record()
-
-        print(f"{'>   '*indent}  is_list   = {is_list}")
-        print(f"{'>   '*indent}  is_record = {is_record}")
-
-        if is_list:
-            flows = count <  abstract.field.range[1]
-            exits = count >= abstract.field.range[0]
-        elif is_record:
-            flows = count == 0
-            exits = count >  0
-        else:
-            flows = True
-            exits = True
-
-        print(f"{'>   '*indent}  flows={flows} ({abstract.flow is not None})")
-        print(f"{'>   '*indent}  exits={exits} ({abstract.exit is not None})")
-
-        for predecessor in path[::-1]:
-            # if predecessor.ab
-            if not ctag in predecessor.next:
-                predecessor.next.append(ctag)
-            break
-        
-        if visited:
-            return ctag
-
-        flows = flows and (abstract.flow is not None)
-        exits = exits and (abstract.exit is not None)
-
-        if flows:
-            print(f"{'>   '*indent}  FLOW: {abstract.flow.tag()}")
-            new_indices = copy.deepcopy(indices)
-            if abstract.depth() < abstract.flow.depth():
-                new_indices.append(0)
-            else:
-                assert abstract.tag() == abstract.flow.tag()
-                new_indices[-1] += 1
-            self.build_concrete_rec(abstract=abstract.flow, path=path + [ concrete ], indices=new_indices, indent=indent+1)
-
-        if exits:
-            print(f"{'>   '*indent}  EXIT: {abstract.exit.tag()}")
-            new_indices = copy.deepcopy(indices)
-            if abstract.depth() > abstract.exit.depth():
-                assert abstract.depth() - abstract.exit.depth() == 1
-                new_indices = new_indices[:-1]
-                new_indices[-1] += 1
-            else:
-                new_indices[-1] = 0
-            self.build_concrete_rec(abstract=abstract.exit, path=path + [ concrete ], indices=new_indices, indent=indent+1)
-
-        return ctag
-
-    def build_concrete(self):
-        root = self.abstracts['root']
-
-        start = ConcreteState(abstract=root, indices=[0])
-        self.concretes.update({ start.tag() : start })
-
-        stop = ConcreteState(abstract=root, indices=[1])
-        self.concretes.update({ stop.tag() : stop })
-
-        self.build_concrete_rec(abstract=root.flow, path=[start], indices=[0,0])
 
     def instantiate(self, syntax: Syntax, data: Any):
         fta = FTA()
@@ -388,6 +305,8 @@ class Automaton(BaseModel):
             uid='header', cls=Text,
             text=syntax.header_pre_post[0] + header + syntax.header_pre_post[1] + '\nstart:\n'
         )
+
+        # TODO
 
         return fta
         
@@ -427,6 +346,7 @@ class Automaton(BaseModel):
             crange = None if curr.abstract.field is None else curr.abstract.field.range
             is_list_tail = crange is not None and curr.indices[-1] >= crange[1]
             is_record_node = ( curr.abstract.field is None ) or ( curr.abstract.field.format is None )
+
             fillcolor = "white"
             if is_list_tail:
                 fillcolor = "red"
@@ -436,7 +356,19 @@ class Automaton(BaseModel):
                 fillcolor = "orange"
             else:
                 fillcolor = "gray"
-            dotstr += f'{curr.tag()} [label="{curr.name()}[{curr.index()}]", fillcolor="{fillcolor}", style="filled"];\n'
+
+            label = []
+            path = curr.path()
+            for (p,i) in path:
+                astate = self.abstracts[p]
+                lbl = astate.field.name
+                if astate.field.range is not None:
+                    lbl += f"[{i}]"
+                label.append(lbl)
+            label = '.'.join(label) if len(label) > 0 else 'root'
+
+            dotstr += f'{curr.tag()} [label="{label}", fillcolor="{fillcolor}", style="filled"];\n'
+
             for next in curr.flows:
                 dotstr += f'{curr.tag()} -> {next} [color=green, constraint=false];\n'
             for next in curr.exits:
