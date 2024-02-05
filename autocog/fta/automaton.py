@@ -54,9 +54,10 @@ class FiniteThoughtAutomaton(BaseModel):
                     dotstr += f'  {act.toGraphVizTag()} -> {stags[0]} [label="*"];\n'
             elif len(stags) > 1:
                 assert isinstance(act, Choose)
+                assert not None in stags
                 assert len(stags) == len(act.choices)
-                for (stag,(text,toks)) in zip(stags,act.choices):
+                for (stag,(text,toks)) in zip([ self.actions[s].toGraphVizTag() for s in act.successors ],act.choices):
                     dotstr += f'  {act.toGraphVizTag()} -> {stag} [label="{text}"];\n'
-            else:
-                dotstr += f'  {act.toGraphVizTag()} -> {act.toGraphVizTag()}_end [label="*"];\n'
+            # else:
+            #     dotstr += f'  {act.toGraphVizTag()} -> {act.toGraphVizTag()}_end [label="*"];\n'
         return dotstr

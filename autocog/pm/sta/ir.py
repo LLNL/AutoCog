@@ -63,10 +63,7 @@ class Field(Object):
         return self.format is None
     
     def mechanics(self, indent):
-        if self.format is None:
-            fmt = ''
-        else:
-            fmt = '(' + self.format.label() + ')'
+        fmt = '(record)' if self.is_record() else '(' + self.format.label() + ')'
         return f"{indent*self.depth}{self.name}{fmt}{range_to_str(self.range)}:"
 
 class Record(Object):

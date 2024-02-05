@@ -40,9 +40,9 @@ class AbstractState(BaseModel):
 class ConcreteState(BaseModel):
     abstract:   AbstractState
     indices:    List[int]
-    flows:      List["ConcreteState"] = []
-    exits:      List["ConcreteState"] = []
-    successors: List["ConcreteState"] = []
+    flows:      List[str] = []
+    exits:      List[str] = []
+    successors: List[str] = []
 
     @staticmethod
     def make_tag(abstract, indices):
@@ -59,6 +59,16 @@ class ConcreteState(BaseModel):
 
     def path(self):
         return list(zip(self.abstract.parents(),self.indices))
+
+    def prompt(self, syntax):
+        field = self.abstract.field
+        indent = syntax.prompt_indent * len(self.indices)
+        fmt = '(record)' if field.is_record() else '(' + field.format.label() + ')'
+        idx = f'[{self.indices[-1]}]' if field.is_list() else ''
+        prompt = indent + self.name() + fmt + idx + ':'
+        if not field.is_record():
+            prompt += ' '
+        return prompt
 
 class Automaton(BaseModel):
     prompt: IrPrompt
@@ -285,11 +295,43 @@ class Automaton(BaseModel):
             assert len(state.exits) == 0 or pred is not None
             exits = self.exit_closure(state.exits)
             for e in exits:
-                # TODO recursive traverse of exits
                 if not e in pred.successors:
                     pred.successors.append(e)
             state.exits.clear()
 
+    def instantiate_branch(self, syntax: Syntax, data: Any, fta: FTA, concrete: ConcreteState):
+        if len(concrete.successors) == 0:
+            return None
+
+        ctag = concrete.tag().replace('@','_')
+        choices = [ self.concretes[succ].prompt(syntax) for succ in concrete.successors ]
+        # branch = f'branch.{ctag}.{len(fta.actions)}'
+        branch = f'branch.{ctag}'
+        fta.create(uid=branch, cls=Choose, choices=choices)
+
+        for succ in concrete.successors:
+            successor = self.concretes[succ]
+            tag = successor.tag().replace('@','_')
+
+            if successor.abstract.field.format is None:
+                prev = branch
+            else:
+                # uid = f'field.{tag}.{len(fta.actions)}'
+                uid = f'field.{tag}'
+                fta.create(uid=uid, cls=Text, text='TODO') # TODO ACTION_KWARGS(successor.abstract.field.format)
+                fta.connect(branch, uid)
+                prev = uid
+
+            # endl = f'endl.{tag}.{len(fta.actions)}'
+            endl = f'endl.{tag}'
+            fta.create(uid=endl, cls=Text, text='\n')
+            fta.connect(prev, endl)
+
+            next = self.instantiate_branch(syntax=syntax, data=data, fta=fta, concrete=successor)
+            if next is not None:
+                fta.connect(endl, next)
+
+        return branch
 
     def instantiate(self, syntax: Syntax, data: Any):
         fta = FTA()
@@ -301,12 +343,9 @@ class Automaton(BaseModel):
             lst=syntax.format_listing
         )
 
-        concrete = fta.create(
-            uid='header', cls=Text,
-            text=syntax.header_pre_post[0] + header + syntax.header_pre_post[1] + '\nstart:\n'
-        )
-
-        # TODO
+        header = syntax.header_pre_post[0] + header + syntax.header_pre_post[1]
+        fta.create( uid='root', cls=Text, text=header + '\nstart:\n')
+        fta.connect('root', self.instantiate_branch(syntax=syntax, data=data, fta=fta, concrete=self.concretes['root@']))
 
         return fta
         
