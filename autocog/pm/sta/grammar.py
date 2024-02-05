@@ -61,10 +61,10 @@ return_block     = LCB WS return_as_stmt__? return_from_stmt__+ RCB
 return_as_stmt__ = return_as_stmt WS
 return_as_stmt   = AS WS string_literal WS SC
 return_from_stmt__ = return_from_stmt WS
-return_from_stmt = FROM WS path_expr ret_rename__ WS SC
+return_from_stmt = FROM WS local_path_expr ret_rename__ WS SC
 ret_rename__     = ret_rename?
 ret_rename       = WS AS WS expression
-return_expr      = path_expr WS SC
+return_expr      = local_path_expr WS SC
 
 annot_block      = ANNOTATE WS LCB WS annot_stmt__+ RCB
 annot_stmt__     = annot_stmt WS

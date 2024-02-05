@@ -6,8 +6,11 @@ from pydantic import BaseModel
 import copy
 import time
 
-from .ir import Prompt as IrPrompt 
-from .ir import Field  as IrField
+from .ir import Prompt     as IrPrompt 
+from .ir import Field      as IrField 
+from .ir import Completion as IrCompletion
+from .ir import Enum       as IrEnum
+from .ir import Choice     as IrChoice
 
 from .syntax import Syntax
 
@@ -34,6 +37,14 @@ class AbstractState(BaseModel):
             parent = parent.parent
         return parents
 
+    def str(self):
+        path = []
+        parent = self.field
+        while isinstance(parent, IrField):
+            path = [ parent.name ] + path
+            parent = parent.parent
+        return '.'.join(path)
+
     def name(self):
         return "root" if self.field is None else self.field.name
 
@@ -59,6 +70,9 @@ class ConcreteState(BaseModel):
 
     def path(self):
         return list(zip(self.abstract.parents(),self.indices))
+
+    def str(self):
+        pass
 
     def prompt(self, syntax):
         field = self.abstract.field
@@ -305,7 +319,6 @@ class Automaton(BaseModel):
 
         ctag = concrete.tag().replace('@','_')
         choices = [ self.concretes[succ].prompt(syntax) for succ in concrete.successors ]
-        # branch = f'branch.{ctag}.{len(fta.actions)}'
         branch = f'branch.{ctag}'
         fta.create(uid=branch, cls=Choose, choices=choices)
 
@@ -316,13 +329,19 @@ class Automaton(BaseModel):
             if successor.abstract.field.format is None:
                 prev = branch
             else:
-                # uid = f'field.{tag}.{len(fta.actions)}'
                 uid = f'field.{tag}'
-                fta.create(uid=uid, cls=Text, text='TODO') # TODO ACTION_KWARGS(successor.abstract.field.format)
+                fmt = successor.abstract.field.format
+                if isinstance(fmt, IrCompletion):
+                    fta.create(uid=uid, cls=Complete, length=fmt.length, stop=['\n'])
+                elif isinstance(fmt, IrEnum):
+                    fta.create(uid=uid, cls=Choose, choices=fmt.values)
+                elif isinstance(fmt, IrChoice):
+                    fta.create(uid=uid, cls=Text, text='TODO Choice') # TODO ACTION_KWARGS(successor.abstract.field.format)
+                else:
+                    raise Exception(f'Unknown format: {successor.abstract.field.format}')
                 fta.connect(branch, uid)
                 prev = uid
 
-            # endl = f'endl.{tag}.{len(fta.actions)}'
             endl = f'endl.{tag}'
             fta.create(uid=endl, cls=Text, text='\n')
             fta.connect(prev, endl)
@@ -333,7 +352,12 @@ class Automaton(BaseModel):
 
         return branch
 
-    def instantiate(self, syntax: Syntax, data: Any):
+    def assemble(self, stacks: Any, inputs: Any):
+        for channel in self.prompt.channels:
+            print(channel.tgt)
+        return {}
+
+    def instantiate(self, syntax: Syntax, stacks: Any, inputs: Any):
         fta = FTA()
 
         header = self.prompt.header(
@@ -343,11 +367,13 @@ class Automaton(BaseModel):
             lst=syntax.format_listing
         )
 
+        data = self.assemble(stacks, inputs)
+
         header = syntax.header_pre_post[0] + header + syntax.header_pre_post[1]
         fta.create( uid='root', cls=Text, text=header + '\nstart:\n')
         fta.connect('root', self.instantiate_branch(syntax=syntax, data=data, fta=fta, concrete=self.concretes['root@']))
 
-        return fta
+        return (fta, data)
         
     def toGraphViz_abstract(self):
         dotstr = ''
