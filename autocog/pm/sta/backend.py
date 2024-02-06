@@ -12,6 +12,8 @@ from .ast import Scope    as AstScope
 from .ast import Format   as AstFormat
 from .ast import Struct   as AstStruct
 from .ast import Field    as AstField
+from .ast import Path     as AstPath
+from .ast import Call     as AstCall
 from .ast import Record   as AstRecord
 from .ast import TypeRef  as AstTypeRef
 from .ast import EnumType as AstEnumType
@@ -28,6 +30,9 @@ from .ir import Choice     as IrChoice
 from .ir import Range      as IrRange
 from .ir import Record     as IrRecord
 from .ir import Path       as IrPath
+from .ir import Call       as IrCall
+from .ir import Dataflow   as IrDataflow
+from .ir import Input      as IrInput
 
 class TmpRecord(IrObject):
     fields: List[AstField]
@@ -196,4 +201,21 @@ class Backend(BaseModel):
                     self.fields[path].desc.append(annot)
                 else:
                     prompt.desc.append(annot)
-            # TODO channels
+            for channel in p.channels:
+                assert not channel.target.is_input
+                assert channel.target.prompt is None
+                tgt = [ ( s.name, None if s.slice is None else s.slice.start.eval(values) ) for s in channel.target.steps ]
+                if isinstance(channel.source, AstPath):
+                    assert len(channel.source.steps) == 1
+                    assert channel.source.steps[0].slice is None
+                    src = [ ( s.name, None if s.slice is None else s.slice.start.eval(values) ) for s in channel.source.steps ]
+                    if channel.source.is_input:
+                        prompt.channels.append(IrInput(src=src, tgt=tgt))
+                    elif channel.source.prompt is not None:
+                        prompt.channels.append(IrDataflow(prompt=channel.source.prompt.name, src=src, tgt=tgt))
+                    else:
+                        prompt.channels.append(IrDataflow(prompt=None, src=src, tgt=tgt))
+                elif isinstance(channel.source, AstCall):
+                    raise NotImplementedError(f"Channel with Call source: {channel.source}")
+                else:
+                    raise Exception(f"Unexpected channel source: {channel.source}")

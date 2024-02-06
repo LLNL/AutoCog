@@ -6,11 +6,16 @@ from pydantic import BaseModel
 import copy
 import time
 
-from .ir import Prompt     as IrPrompt 
-from .ir import Field      as IrField 
+from .ir import Prompt     as IrPrompt
+from .ir import Field      as IrField
 from .ir import Completion as IrCompletion
 from .ir import Enum       as IrEnum
 from .ir import Choice     as IrChoice
+from .ir import Input      as IrInput
+from .ir import Dataflow   as IrDataflow
+from .ir import Call       as IrCall
+
+from .runtime import Frame
 
 from .syntax import Syntax
 
@@ -37,9 +42,11 @@ class AbstractState(BaseModel):
             parent = parent.parent
         return parents
 
-    def str(self):
+    def label(self):
         path = []
         parent = self.field
+        if parent is None:
+            return 'root'
         while isinstance(parent, IrField):
             path = [ parent.name ] + path
             parent = parent.parent
@@ -59,6 +66,18 @@ class ConcreteState(BaseModel):
     def make_tag(abstract, indices):
         return f"{abstract.tag()}@{'_'.join(map(str,indices))}"
 
+    @staticmethod
+    def make_label(abstract, indices):
+        fields = []
+        parent = abstract.field
+        if parent is None:
+            return 'root'
+        while isinstance(parent, IrField):
+            fields = [ parent ] + fields
+            parent = parent.parent
+
+        return '.'.join([ f"{f.name}[{i}]" if f.is_list() else f"{f.name}" for (f,i) in zip(fields,indices) ])
+
     def tag(self):
         return ConcreteState.make_tag(self.abstract, self.indices)
 
@@ -71,8 +90,8 @@ class ConcreteState(BaseModel):
     def path(self):
         return list(zip(self.abstract.parents(),self.indices))
 
-    def str(self):
-        pass
+    def label(self):
+        return ConcreteState.make_label(self.abstract,self.indices)
 
     def prompt(self, syntax):
         field = self.abstract.field
@@ -88,6 +107,12 @@ class Automaton(BaseModel):
     prompt: IrPrompt
     abstracts: Dict[str,AbstractState] = {}
     concretes: Dict[str,ConcreteState] = {}
+
+    def get_abstract(self, path:List[Tuple[str,Optional[int]]]):
+        pass
+
+    def get_concrete(self, path:List[Tuple[str,Optional[int]]]):
+        pass
     
     def build_abstract(self):
         assert len(self.abstracts) == 0
@@ -103,7 +128,7 @@ class Automaton(BaseModel):
             state = AbstractState(field=fld)
             if fld.range is not None:
                 state.flow = state
-            self.abstracts.update({ state.tag() : state })
+            self.abstracts.update({ state.label() : state })
 
             prev = stack[-1][-1]
             if fld.index == 0:
@@ -313,7 +338,7 @@ class Automaton(BaseModel):
                     pred.successors.append(e)
             state.exits.clear()
 
-    def instantiate_branch(self, syntax: Syntax, data: Any, fta: FTA, concrete: ConcreteState):
+    def instantiate_rec(self, syntax: Syntax, data: Frame, fta: FTA, concrete: ConcreteState):
         if len(concrete.successors) == 0:
             return None
 
@@ -346,16 +371,50 @@ class Automaton(BaseModel):
             fta.create(uid=endl, cls=Text, text='\n')
             fta.connect(prev, endl)
 
-            next = self.instantiate_branch(syntax=syntax, data=data, fta=fta, concrete=successor)
+            next = self.instantiate_rec(syntax=syntax, data=data, fta=fta, concrete=successor)
             if next is not None:
                 fta.connect(endl, next)
 
         return branch
 
-    def assemble(self, stacks: Any, inputs: Any):
+    def assemble(self, stacks: Dict[str,List[Frame]], inputs: Any):
+        if not self.prompt.name in stacks:
+            stacks.update({ self.prompt.name : [] })
+
+        abstracts = { st.label() : ( st, {} ) for st in self.abstracts.values() }
+        concretes = {}
+        for st in self.concretes.values():
+            albl = st.abstract.label()
+            clbl = st.label()
+            abstracts[albl][1].update({ clbl : st })
+            concretes.update({ clbl : st })
+
+        frame_state = { st.label() : None for st in self.concretes.values() if st.abstract.field is not None }
+        frame = Frame(state=frame_state)
         for channel in self.prompt.channels:
-            print(channel.tgt)
-        return {}
+            if isinstance(channel, IrInput):
+                data = inputs
+            elif isinstance(channel, IrDataflow):
+                if channel.prompt is None:
+                    data = stacks[self.prompt.name]
+                else:
+                    data = stacks[channel.prompt]
+                data = data[-1].data
+            elif isinstance(channel, IrCall):
+                raise NotImplementedError(f"Call channel: {channel.src}")
+            else:
+                raise Exception(f"Unexpected channel: {channel}")
+
+            for (fld,idx) in channel.src:
+                data = data[fld]
+                if idx is not None:
+                    assert isinstance(data, list)
+                    data = data[idx]
+
+            frame.locate_and_insert(abstracts, concretes, channel.tgt, data)
+
+        print(f"frame={frame}")
+        stacks[self.prompt.name].append(frame)
 
     def instantiate(self, syntax: Syntax, stacks: Any, inputs: Any):
         fta = FTA()
@@ -367,17 +426,18 @@ class Automaton(BaseModel):
             lst=syntax.format_listing
         )
 
-        data = self.assemble(stacks, inputs)
+        self.assemble(stacks, inputs)
 
         header = syntax.header_pre_post[0] + header + syntax.header_pre_post[1]
         fta.create( uid='root', cls=Text, text=header + '\nstart:\n')
-        fta.connect('root', self.instantiate_branch(syntax=syntax, data=data, fta=fta, concrete=self.concretes['root@']))
+        fta.connect('root', self.instantiate_rec(syntax=syntax, data=stacks[self.prompt.name][-1], fta=fta, concrete=self.concretes['root@']))
 
-        return (fta, data)
+        return fta
         
     def toGraphViz_abstract(self):
         dotstr = ''
         for state in self.abstracts.values():
+            dotstr += f'{state.tag()} [label="{state.label()}"];\n'
             if state.flow is not None:
                 constraint = 'true'
                 if state.field is None:
@@ -422,17 +482,7 @@ class Automaton(BaseModel):
             else:
                 fillcolor = "gray"
 
-            label = []
-            path = curr.path()
-            for (p,i) in path:
-                astate = self.abstracts[p]
-                lbl = astate.field.name
-                if astate.field.range is not None:
-                    lbl += f"[{i}]"
-                label.append(lbl)
-            label = '.'.join(label) if len(label) > 0 else 'root'
-
-            dotstr += f'{curr.tag()} [label="{label}", fillcolor="{fillcolor}", style="filled"];\n'
+            dotstr += f'{curr.tag()} [label="{curr.label()}", fillcolor="{fillcolor}", style="filled"];\n'
 
             for next in curr.flows:
                 dotstr += f'{curr.tag()} -> {next} [color=green, constraint=false];\n'

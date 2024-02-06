@@ -70,7 +70,7 @@ class Record(Object):
     fields: List[Field] = []
 
 class Channel(BaseModel):
-    tgt: Field
+    tgt: List[Tuple[str,Optional[int]]]
 
 class Prompt(Object):
     fields:   List[Field]   = []
@@ -146,7 +146,8 @@ class Call(Channel):
     binds:  Any = None # TODO Any?
 
 class Dataflow(Channel):
-    src: Field
+    prompt: Optional[str]
+    src: List[Tuple[str,Optional[int]]]
 
 class Input(Channel):
-    src: List[str]
+    src: List[Tuple[str,Optional[int]]]
