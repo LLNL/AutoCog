@@ -38,7 +38,7 @@ class AbstractState(BaseModel):
         parents = []
         parent = self.field
         while isinstance(parent, IrField):
-            parents = [ parent.tag() ] + parents
+            parents = [ parent ] + parents
             parent = parent.parent
         return parents
 
@@ -88,10 +88,19 @@ class ConcreteState(BaseModel):
         return ','.join(map(str,self.indices))
 
     def path(self):
-        return list(zip(self.abstract.parents(),self.indices))
+        return list(zip([ p.tag() for p in self.abstract.parents() ],self.indices))
 
     def label(self):
         return ConcreteState.make_label(self.abstract,self.indices)
+    
+    def coords(self):
+        if self.abstract.field is None:
+            return []
+        coord = []
+        for (i,j) in zip(self.abstract.field.coords(), self.indices):
+            coord.append(i)
+            coord.append(j)
+        return coord
 
     def prompt(self, syntax):
         field = self.abstract.field
@@ -159,7 +168,7 @@ class Automaton(BaseModel):
 
         # print(f"{'>   '*indent}- {curr}:")
         # print(f"{'>   '*indent}  depth   = {depth}")
-        # print(f"{'>   '*indent}  parents = {parents}")
+        # print(f"{'>   '*indent}  parents = {[ p.tag() for p in parents ]}")
         # print(f"{'>   '*indent}  indices = {indices}")
 
         assert len(indices) == depth + 1
@@ -338,30 +347,72 @@ class Automaton(BaseModel):
                     pred.successors.append(e)
             state.exits.clear()
 
-    def instantiate_rec(self, syntax: Syntax, data: Frame, fta: FTA, concrete: ConcreteState):
-        if len(concrete.successors) == 0:
-            return None
+    def filter_successors(self, frame: Frame, concrete: ConcreteState):
+        order_by_coords = lambda cs: list(sorted(cs, key=lambda c: c.coords()))
+        successors = order_by_coords([ self.concretes[succ] for succ in concrete.successors ])
+        if len(successors) <= 1:
+            return successors
 
+        candidates = []
+        for succ in successors:
+            lbl = succ.label()
+            state = frame.state[lbl]
+            if state is None:
+                candidates.append(succ)
+            elif state is False:
+                pass
+            elif state is True:
+                candidates.append(succ)
+                break
+            else:
+                raise Exception(f"Unexpected state for {lbl}: {state}")
+
+        assert len(candidates) > 0
+        if len(candidates) == 1:
+            return candidates
+
+        return candidates
+
+    def instantiate_rec(self, syntax: Syntax, frame: Frame, fta: FTA, concrete: ConcreteState):
+        successors = self.filter_successors(frame=frame, concrete=concrete)
         ctag = concrete.tag().replace('@','_')
-        choices = [ self.concretes[succ].prompt(syntax) for succ in concrete.successors ]
         branch = f'branch.{ctag}'
-        fta.create(uid=branch, cls=Choose, choices=choices)
+        if len(successors) == 0:
+            return None
+        elif len(successors) == 1:
+            fta.create(uid=branch, cls=Text, text=successors[0].prompt(syntax))
+        else:
+            choices = [ succ.prompt(syntax) for succ in successors ]
+            fta.create(uid=branch, cls=Choose, choices=choices)
 
-        for succ in concrete.successors:
-            successor = self.concretes[succ]
+        for successor in successors:
+            lbl = successor.label()
             tag = successor.tag().replace('@','_')
 
+            uid = f'field.{tag}'
             if successor.abstract.field.format is None:
                 prev = branch
             else:
-                uid = f'field.{tag}'
                 fmt = successor.abstract.field.format
-                if isinstance(fmt, IrCompletion):
+                if frame.state[lbl] is True:
+                    path = [ ( p.name, i if p.is_list() else None ) for (p,i) in zip(successor.abstract.parents(), successor.indices) ]
+                    fta.create(uid=uid, cls=Text, text=frame.read(path))
+                elif isinstance(fmt, IrCompletion):
                     fta.create(uid=uid, cls=Complete, length=fmt.length, stop=['\n'])
                 elif isinstance(fmt, IrEnum):
                     fta.create(uid=uid, cls=Choose, choices=fmt.values)
                 elif isinstance(fmt, IrChoice):
-                    fta.create(uid=uid, cls=Text, text='TODO Choice') # TODO ACTION_KWARGS(successor.abstract.field.format)
+                    assert not fmt.path.is_input
+                    assert fmt.path.prompt is None
+                    choices = frame.ravel(fmt.path.steps)
+                    if fmt.mode == 'repeat':
+                        pass
+                    elif fmt.mode == 'select':
+                        choices = range(len(choices))
+                    else:
+                        raise Exception(f"Unexpected choice mode: {fmt.mode}")
+                    choices = list(map(str,choices))
+                    fta.create(uid=uid, cls=Choose, choices=choices)
                 else:
                     raise Exception(f'Unknown format: {successor.abstract.field.format}')
                 fta.connect(branch, uid)
@@ -371,7 +422,7 @@ class Automaton(BaseModel):
             fta.create(uid=endl, cls=Text, text='\n')
             fta.connect(prev, endl)
 
-            next = self.instantiate_rec(syntax=syntax, data=data, fta=fta, concrete=successor)
+            next = self.instantiate_rec(syntax=syntax, frame=frame, fta=fta, concrete=successor)
             if next is not None:
                 fta.connect(endl, next)
 
@@ -413,7 +464,11 @@ class Automaton(BaseModel):
 
             frame.locate_and_insert(abstracts, concretes, channel.tgt, data)
 
-        print(f"frame={frame}")
+        frame.finalize(abstracts, concretes)
+
+        # import json
+        # print(f"frame={json.dumps(dict(frame), indent=4)}")
+
         stacks[self.prompt.name].append(frame)
 
     def instantiate(self, syntax: Syntax, stacks: Any, inputs: Any):
@@ -430,7 +485,7 @@ class Automaton(BaseModel):
 
         header = syntax.header_pre_post[0] + header + syntax.header_pre_post[1]
         fta.create( uid='root', cls=Text, text=header + '\nstart:\n')
-        fta.connect('root', self.instantiate_rec(syntax=syntax, data=stacks[self.prompt.name][-1], fta=fta, concrete=self.concretes['root@']))
+        fta.connect('root', self.instantiate_rec(syntax=syntax, frame=stacks[self.prompt.name][-1], fta=fta, concrete=self.concretes['root@']))
 
         return fta
         

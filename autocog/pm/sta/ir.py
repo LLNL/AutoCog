@@ -55,6 +55,9 @@ class Field(Object):
 
     def path(self):
         return f"{self.parent.path()}.{self.name}" if isinstance(self.parent, Field) else self.name
+    
+    def coords(self):
+        return self.parent.coords() + [ self.index ] if isinstance(self.parent, Field) else [ self.index ]
 
     def is_list(self):
         return self.range is not None
