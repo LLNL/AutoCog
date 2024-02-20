@@ -18,6 +18,10 @@ class Action(BaseModel):
         super().__init__(uid=uid, **kwargs)
 
     @abstractmethod
+    def prepare(self, lm):
+        pass
+
+    @abstractmethod
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         pass
 
@@ -39,6 +43,9 @@ class Text(Action):
     def __init__(self, uid:str, text:str, successors: List[str]=[]):
         super().__init__(uid=uid, successors=successors, text=text)
 
+    def prepare(self, lm):
+        self.tokens.extend(lm.tokenize(self.text))
+
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         return { self.tokens[step] : 1. } if step < len(self.tokens) else {}
 
@@ -57,8 +64,12 @@ class Choose(Action):
     def __init__(self, uid:str, choices:List[str], successors: List[str]=[]):
         super().__init__(uid=uid, successors=successors, choices=[ ( c, [] ) for c in choices ])
 
+    def prepare(self, lm):
+        for choice in self.choices:
+            choice[1].extend(lm.tokenize(choice[0]))
+
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
-        raise NotImplementedError()
+        raise NotImplementedError(f"Choose.step(prompt={prompt})")
 
     def next(self, prompt:List[Token]):
         raise NotImplementedError()
@@ -80,6 +91,9 @@ class Complete(Action):
         if stop is not None:
             stop = [ ( s, [] ) for s in stop ]
         super().__init__(uid=uid, successors=successors, length=length, forbid=forbid, stop=stop, seeds=seeds)
+
+    def prepare(self, lm):
+        raise NotImplementedError()
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         raise NotImplementedError()

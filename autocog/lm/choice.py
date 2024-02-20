@@ -15,15 +15,15 @@ class TokenChoiceTree:
         self.proba = None # probability of this token to be produced given its parent. None for the root.
         self.cumul = 1. # probability of this path being taken (product of `causal`). "1." for the root.
 
-    def __add(self, sequence:List[int]):
+    def add_tokens(self, sequence:List[int]):
         tok = sequence[0]
         if not tok in self.children:
             self.children.update({ tok : TokenChoiceTree(token=tok, depth=self.depth+1, parent=self) })
         tree = self.children[tok]
-        return tree if len(sequence) == 1 else tree.__add(sequence[1:])
+        return tree if len(sequence) == 1 else tree.add_tokens(sequence[1:])
 
     def add(self, llm:LM, text:str):
-        return self.__add(llm.tokenize(text))
+        return self.add_tokens(llm.tokenize(text))
 
     def decode(self, llm:LM):
         return '' if self.token is None else llm.detokenize([self.token])
@@ -33,10 +33,12 @@ class TokenChoiceTree:
             prompt += self.decode(llm)
 
         probs = numpy.exp(llm.greedy(prompt))
+        tails = []
         for tree in self.children.values():
             tree.proba = probs[tree.token]
             tree.cumul = self.cumul * tree.proba
-            tree.eval(llm, prompt)
+            tails += [ [ ( tree.token, tree.proba ) ] + tail for tail in tree.eval(llm, prompt) ]
+        return tails
 
     def prob(self, use_path_length_normalization:bool=False):
         if self.depth == 0 or self.cumul is None:
@@ -59,14 +61,14 @@ class TokenChoiceTree:
         for c in self.children.values():
             yield from c.depthfirst()
 
-    def toGraphViz(self):
+    def toGraphViz(self, llm):
         cnt = 0
         dotstr = ""
         for t in self.depthfirst():
             t.id = cnt
             cnt += 1
             if t.parent is not None:
-                label = f"{t.decode()}\\n{int(t.prob()*10e12)/10e6}"
+                label = f"{t.decode(llm)}\\n{int(t.prob()*10e12)/10e6}"
             else:
                 label = "ROOT"
             dotstr += f'n_{t.id} [label="{label}"];'

@@ -24,7 +24,7 @@ class Llama(ChoiceLM):
         return self.model.tokenize(bytes(text, 'utf-8'))[1:]
 
     def detokenize(self, tokens:List[int]) -> str:
-        return self.model.detokenize(tokens).decode("utf-8", errors="ignore")
+        return self.model.detokenize([1]+tokens).decode("utf-8", errors="ignore")
 
     def complete(self, prompt: str, stop:str='\n') -> str:
         return self.model(prompt, stop=[stop], **self.completion_kwargs)['choices'][0]['text'] + stop
