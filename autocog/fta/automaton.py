@@ -108,9 +108,6 @@ class FiniteThoughtAutomaton(BaseModel):
         pass # TODO concatenate chains of text-actions: need predecessors map
 
     def greedy_rec(self, lm:LM, text:str, tokens:List[Token], action:Action):
-        print(f"FTA.greedy_rec")
-        print(f"  action = {action}")
-
         if isinstance(action, Text):
             tree = FiniteTokenTree(text=action.text, tokens=action.tokens)
             if len(action.successors) == 1:
@@ -121,10 +118,8 @@ class FiniteThoughtAutomaton(BaseModel):
             return [ tree ]
         elif isinstance(action, Choose):
             tct = TokenChoiceTree()
-            print(f"action.choices={action.choices}")
             for (text_,tokens_) in action.choices:
                 tct.add_tokens(tokens_)
-            print(f"tct={tct.toGraphViz(lm)}")
 
             actions = {}
             if len(action.successors) == 1:
@@ -136,17 +131,13 @@ class FiniteThoughtAutomaton(BaseModel):
             assert len(actions) == len(action.choices)
 
             tok_probas = tct.eval(lm, text)
-            print(f"tok_probas={tok_probas}")
-
             texts = list(list(zip(*action.choices))[0])
-            print(f"texts={texts}")
 
             trees = []
             for tok_proba in tok_probas:
                 (tokens_, probas) = zip(*tok_proba)
                 tokens_ = list(tokens_)
                 probas = list(probas)
-                print(f"tokens_={tokens_}")
                 text_ = lm.detokenize(tokens_)
                 assert text_ in texts, f"Not found: \"{text_}\""
                 tree = FiniteTokenTree(text=text_, tokens=tokens_, probas=probas)
@@ -158,7 +149,6 @@ class FiniteThoughtAutomaton(BaseModel):
             raise NotImplementedError(f"Case of {action.__class__.__name__} action")
 
     def greedy(self, lm: LM):
-        print(f"FTA.greedy")
         for action in self.actions.values():
             action.prepare(lm)
         branches = self.greedy_rec(lm=lm, text='', tokens=[], action=self.actions['root'])
