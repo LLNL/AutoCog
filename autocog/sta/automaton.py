@@ -19,8 +19,8 @@ from .runtime import Frame
 
 from .syntax import Syntax
 
-from ...fta.automaton import FiniteThoughtAutomaton as FTA
-from ...fta.actions import Action, Choose, Complete, Text
+from ..fta.automaton import FiniteThoughtAutomaton as FTA
+from ..fta.actions import Action, Choose, Complete, Text
 
 class AbstractState(BaseModel):
     field: Optional[IrField] = None
@@ -166,17 +166,8 @@ class Automaton(BaseModel):
         depth = abstract.depth()
         parents = abstract.parents()
 
-        # print(f"{'>   '*indent}- {curr}:")
-        # print(f"{'>   '*indent}  depth   = {depth}")
-        # print(f"{'>   '*indent}  parents = {[ p.tag() for p in parents ]}")
-        # print(f"{'>   '*indent}  indices = {indices}")
-
         assert len(indices) == depth + 1
         count = indices[-1]
-
-        # print(f"{'>   '*indent}  count   = {count}")
-
-        ###########################################
 
         if current is not None:
             is_list   = current.is_list()
@@ -184,9 +175,6 @@ class Automaton(BaseModel):
         else:
             is_list   = False
             is_record = True
-
-        # print(f"{'>   '*indent}  is_list   = {is_list}")
-        # print(f"{'>   '*indent}  is_record = {is_record}")
 
         if is_list:
             flows = count <  current.range[1]
@@ -198,27 +186,17 @@ class Automaton(BaseModel):
             flows = True
             exits = True
 
-        # print(f"{'>   '*indent}  flows={flows} ({abstract.flow is not None})")
-        # print(f"{'>   '*indent}  exits={exits} ({abstract.exit is not None})")
-
         flows = flows and (abstract.flow is not None)
         exits = exits and (abstract.exit is not None)
 
-        ###########################################
-
         ctag = ConcreteState.make_tag(abstract=abstract, indices=indices[1:])
-        # print(f"{'>   '*indent}  ctag = {ctag}")
         if ctag in self.concretes:
-            # print(f"{'>   '*indent}  FOUND: {ctag}")
             return ctag
         
         concrete = ConcreteState(abstract=abstract, indices=indices[1:])
         self.concretes.update({ ctag : concrete })
 
-        ###########################################
-
         if flows:
-            # print(f"{'>   '*indent}  FLOW: {abstract.flow.tag()}")
             new_indices = copy.deepcopy(indices)
             if abstract.depth() < abstract.flow.depth():
                 assert abstract.flow.depth() - abstract.depth() == 1
@@ -230,7 +208,6 @@ class Automaton(BaseModel):
             concrete.flows.append(next)
 
         if exits:
-            # print(f"{'>   '*indent}  EXIT: {abstract.exit.tag()}")
             new_indices = copy.deepcopy(indices)
             if abstract.depth() > abstract.exit.depth():
                 delta = abstract.depth() - abstract.exit.depth()
@@ -240,8 +217,6 @@ class Automaton(BaseModel):
                 new_indices[-1] = 0
             next = self.build_concrete_rec(abstract=abstract.exit, indices=new_indices, indent=indent+1)
             concrete.exits.append(next)
-
-        ###########################################
 
         return concrete.tag()
     
@@ -398,7 +373,7 @@ class Automaton(BaseModel):
                     path = [ ( p.name, i if p.is_list() else None ) for (p,i) in zip(successor.abstract.parents(), successor.indices) ]
                     fta.create(uid=uid, cls=Text, text=frame.read(path))
                 elif isinstance(fmt, IrCompletion):
-                    fta.create(uid=uid, cls=Complete, length=fmt.length, stop=['\n'])
+                    fta.create(uid=uid, cls=Complete, length=fmt.length, stops=['\n'])
                 elif isinstance(fmt, IrEnum):
                     fta.create(uid=uid, cls=Choose, choices=fmt.values)
                 elif isinstance(fmt, IrChoice):
@@ -465,9 +440,6 @@ class Automaton(BaseModel):
             frame.locate_and_insert(abstracts, concretes, channel.tgt, data)
 
         frame.finalize(abstracts, concretes)
-
-        # import json
-        # print(f"frame={json.dumps(dict(frame), indent=4)}")
 
         stacks[self.prompt.name].append(frame)
 

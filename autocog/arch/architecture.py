@@ -5,17 +5,21 @@ import asyncio
 
 import os, sys, json, copy, pathlib
 
-from ..cogs import Cog
+from .cogs import Cog
 from .orchestrator import Orchestrator, Serial
 
-from ..automatons.sta.automaton import StructuredThoughtAutomaton as STA
+from ..sta.syntax import Syntax
+from ..sta.backend import Backend
 
 class CognitiveArchitecture(BaseModel):
     orchestrator: Orchestrator
+    syntax: Syntax
     cogs: Dict[str,Cog] = {}
 
-    def __init__(self, Orch=Serial, **kwargs):
-        super().__init__(orchestrator=Orch(**kwargs))
+    def __init__(self, Orch=Serial, syntax: Optional[Syntax] = None, **kwargs):
+        if syntax is None:
+            syntax = Syntax()
+        super().__init__(orchestrator=Orch(**kwargs), syntax=syntax)
 
     def reset(self):
         """Reset the state of stateful Cogs. Usefull when testing tools"""
@@ -43,6 +47,8 @@ class CognitiveArchitecture(BaseModel):
         if language == 'sta':
             (program,config) = STA.parse(program=program, **kwargs)
             cog = STA.compile(tag=tag, config=config, orchestrator=self.orchestrator, **program)
+        elif language == 'py':
+            raise NotImplementedError(f"Python COG")
         else:
             raise Exception(f"Unrecognized file language: {language}")
         self.register(cog)

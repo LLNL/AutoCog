@@ -9,12 +9,18 @@ try:
 except:
     tqdm = None
 
-from ..cogs import Cog
+from .cogs import Cog, Automaton
 from ..lm.lm import LM
-from ..automatons.automaton import Automaton
-from ..automatons.machine import StateMachine
-from ..automatons.instance import Instance
 from .utility import PromptPipe
+
+# TODO StateMachine -> FTA ?
+#from ..automatons.machine import StateMachine
+class StateMachine:
+    pass
+# TODO Instance -> Frame ?
+#from ..automatons.instance import Instance
+class Instance:
+    pass
 
 class Frame(BaseModel):
     pid:     Optional[int] = None

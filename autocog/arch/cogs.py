@@ -12,3 +12,11 @@ class Cog(BaseModel):
     @abstractmethod
     async def __call__(self, **inputs) -> Tuple[Any,Any]:
         pass
+
+class Automaton(Cog):
+    """Base class for an Automaton."""
+    orchestrator: "Orchestrator"
+
+    @abstractmethod
+    async def __call__(self, fid:int, **inputs) -> Tuple[Any,Any]:
+        pass

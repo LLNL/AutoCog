@@ -82,18 +82,19 @@ class Choose(Action):
 
 class Complete(Action):
     length: int = 1
-    seeds: Optional[List[str]]
-    forbid: Optional[List[str]] = None
-    stop: Optional[List[Tuple[str,List[Token]]]] = None
-    vocab: Optional[Vocab] = None
+    beams:  int = 1
+    ahead:  int = 1
+    stops:  List[str]
 
-    def __init__(self, uid:str, length:int=1, seeds: Optional[List[str]] = None, stop: Optional[List[str]] = None, forbid: Optional[List[str]] = None, successors: List[str]=[]):
-        if stop is not None:
-            stop = [ ( s, [] ) for s in stop ]
-        super().__init__(uid=uid, successors=successors, length=length, forbid=forbid, stop=stop, seeds=seeds)
+    seeds:  Optional[List[str]]
+    vocab:  Vocab
+
+    def __init__(self, uid:str, length:int, stops: List[str], seeds: Optional[List[str]] = None, successors: List[str]=[]):
+        super().__init__(uid=uid, successors=successors, length=length, stops=stops, seeds=seeds, vocab=Vocab())
 
     def prepare(self, lm):
-        raise NotImplementedError()
+        if self.seeds is not None:
+            vocab.prepare(lm, self.seeds + self.stops)
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         raise NotImplementedError()
@@ -105,4 +106,4 @@ class Complete(Action):
         return 'ellipse'
 
     def toGraphVizLabel(self):
-        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel() if self.vocab is not None else ''}\nstop={'' if self.stop is None else ', '.join(map(lambda x: x[0], self.stop))}\n"
+        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel() if self.vocab is not None else ''}\nstops={self.stops}\n"

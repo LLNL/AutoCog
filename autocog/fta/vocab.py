@@ -12,16 +12,14 @@ class Vocab(BaseModel):
     ranges: List[Tuple[Token,int]] = []
     tokstr: Optional[List[str]] = None
 
-    def __init__(self, tokenizer, texts:List[str]=[]):
-        if len(texts) == 0:
-            super().__init__()
-            return
+    def prepare(self, lm, texts: List[str]):
         tokens : List[Token] = []
         for t in texts:
-            tokens += tokenizer.tokenize(t)
+            tokens += lm.tokenize(t)
         tokens = list(sorted(set(tokens)))
         assert len(tokens) > 1
-        super().__init__(bounds=(tokens[0], tokens[-1]), tokstr=[ tokenizer.detokenize([t]) for t in tokens ])
+        self.bounds = (tokens[0], tokens[-1])
+        self.tokstr = [ lm.detokenize([t]) for t in tokens ]
 
         (base,prev) = (tokens[0], tokens[0])
         for tok in tokens[1:]:

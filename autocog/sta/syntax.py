@@ -5,8 +5,8 @@ from pydantic import BaseModel
 
 from .ir import Prompt, Completion, Enum, Choice
 
-from ...fta.automaton import FiniteThoughtAutomaton as FTA
-from ...fta.actions import Choose, Complete, Text
+from ..fta.automaton import FiniteThoughtAutomaton as FTA
+from ..fta.actions import Choose, Complete, Text
 
 def field_path_from_stack(fields, stack):
     res = []
