@@ -124,10 +124,6 @@ class Automaton(BaseModel):
         stack: List[List[AbstractState]] = [ [ root ] ]
 
         for fld in self.prompt.fields:
-            # print(f"field={fld.tag()}")
-            # for i in range(len(stack)):
-            #     print(f"  stack[{i}]={[ s.tag() for s in stack[i]]}")
-
             state = AbstractState(field=fld)
             if fld.range is not None:
                 state.flow = state
@@ -219,7 +215,7 @@ class Automaton(BaseModel):
         while True:
             state = self.concretes[sequence[-1]]
             assert len(state.successors) <= 1
-            if len(state.successors) == 1:
+            if len(state.successors) == 1 and state.successors[0] != 'root@':
                 sequence.append(state.successors[0])
             else:
                 break
@@ -229,6 +225,8 @@ class Automaton(BaseModel):
         reversed_exits = {}
         for s in sequence:
             for e in self.concretes[s].exits:
+                if e == 'root@':
+                    continue
                 if e in reversed_exits:
                     if not s in reversed_exits[e]:
                         reversed_exits[e].append(s)
@@ -262,7 +260,7 @@ class Automaton(BaseModel):
                 assert len(state.exits) == 1
                 if state.exits[0] != 'root@':
                     state.successors.append(state.exits[0])
-                state.exits.clear()
+                    state.exits.clear()
 
         sequence = self.get_sequence()
         reversed_exits = self.get_reversed_exits(sequence)
@@ -271,15 +269,21 @@ class Automaton(BaseModel):
         prev_deleted = False
         last_kept = None
         for (s,stag) in enumerate(sequence):
+
             state = self.concretes[stag]
 
             crange = None if state.abstract.field is None else state.abstract.field.range
             is_list_tail = crange is not None and state.indices[-1] >= crange[1]
 
             if is_list_tail:
-                assert len(state.exits) == 0
                 delete_set.append(stag)
-                if stag in reversed_exits:
+                assert len(state.exits) == 0 or state.exits[0] == 'root@'
+                if len(state.exits) == 1:
+                    pred = self.concretes[sequence[s-1]]
+                    assert len(pred.successors) == 1
+                    assert pred.successors[0] == stag
+                    pred.successors.clear()
+                elif stag in reversed_exits:
                     assert len(state.successors) == 1, "Last node is the target of exit edges! Probably means that the last statement (at any level) is a list with variable number of elements."
                     succ = state.successors[0]
                     if not succ in reversed_exits:
@@ -421,7 +425,7 @@ class Automaton(BaseModel):
                     data = stacks[channel.prompt]
                 data = data[-1].data
             elif isinstance(channel, IrCall):
-                raise NotImplementedError(f"Call channel: {channel.src}")
+                raise NotImplementedError(f"Call channel: {channel}")
             else:
                 raise Exception(f"Unexpected channel: {channel}")
 

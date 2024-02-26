@@ -143,14 +143,23 @@ class Choice(Format):
 
 # Specialization of `Channel`
 
+SrcPath = List[Tuple[str,Optional[int]]]
+
+class Kwarg(BaseModel):
+    is_input: bool
+    prompt:   Optional[str]
+    path:     SrcPath
+    mapped:   bool
+
 class Call(Channel):
-    callee: Tuple[str,str]
-    kwargs: Dict[str,Any] = {} # TODO Any?
-    binds:  Any = None # TODO Any?
+    extern: Optional[str]
+    entry:  Optional[str]
+    kwargs: Dict[str,Kwarg]
+    binds:  Optional[Dict[str,SrcPath]]
 
 class Dataflow(Channel):
     prompt: Optional[str]
-    src: List[Tuple[str,Optional[int]]]
+    src: SrcPath
 
 class Input(Channel):
-    src: List[Tuple[str,Optional[int]]]
+    src: SrcPath

@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Tuple, Union, Optional, Callable, NamedTuple
 from pydantic import BaseModel
 from abc import abstractmethod
 
+from ..sta.ir import Program
 from ..sta.automaton import Automaton as STA
 from ..sta.runtime import Frame
 
@@ -17,6 +18,7 @@ class Cog(BaseModel):
 
 class Automaton(Cog):
     arch: "CogArch"
+    program: Program
     prompts: Dict[str,STA]
 
     async def __call__(self, fid:Optional[int]=None, **inputs) -> Tuple[Any,Any]:

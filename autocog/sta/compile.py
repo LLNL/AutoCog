@@ -13,6 +13,9 @@ from .ast import Format   as AstFormat
 from .ast import Struct   as AstStruct
 from .ast import Field    as AstField
 from .ast import Path     as AstPath
+from .ast import Step     as AstStep
+from .ast import Prompt   as AstPrompt
+from .ast import Channel  as AstChannel
 from .ast import Call     as AstCall
 from .ast import Record   as AstRecord
 from .ast import TypeRef  as AstTypeRef
@@ -30,6 +33,7 @@ from .ir import Choice     as IrChoice
 from .ir import Range      as IrRange
 from .ir import Record     as IrRecord
 from .ir import Path       as IrPath
+from .ir import Kwarg      as IrKwarg
 from .ir import Call       as IrCall
 from .ir import Dataflow   as IrDataflow
 from .ir import Input      as IrInput
@@ -189,6 +193,78 @@ def append_fields(prompt: IrPrompt, fields: List[AstField], parent: Union[IrProm
                     path = '.'.join(path)
                     ctx.fields[path].desc.append(annotation.label.eval(fmt.values))
 
+def compile_steps(steps: List[AstStep], values:Dict[str,Any]):
+    return [ ( s.name, None if s.slice is None else s.slice.start.eval(values) ) for s in steps ]
+
+def compile_channel(channel: AstChannel, values:Dict[str,Any]):
+    assert not channel.target.is_input
+    assert channel.target.prompt is None
+    tgt = compile_steps(channel.target.steps, values)
+    if isinstance(channel.source, AstPath):
+        assert len(channel.source.steps) == 1
+        assert channel.source.steps[0].slice is None
+        src = compile_steps(channel.source.steps, values)
+        if channel.source.is_input:
+            return IrInput(src=src, tgt=tgt)
+        elif channel.source.prompt is not None:
+            return IrDataflow(prompt=channel.source.prompt, src=src, tgt=tgt)
+        else:
+            return IrDataflow(prompt=None, src=src, tgt=tgt)
+    elif isinstance(channel.source, AstCall):
+        kwargs = {
+            kwarg.name : IrKwarg(
+                is_input=kwarg.source.is_input,
+                prompt=kwarg.source.prompt,
+                path=compile_steps(kwarg.source.steps, values),
+                mapped=kwarg.mapped
+            ) for kwarg in channel.source.kwargs
+        }
+        binds = {}
+        for bind in channel.source.binds:
+            assert not bind.source.is_input
+            assert bind.source.prompt is None
+            binds.update({ bind.target : compile_steps(bind.source.steps, values) })
+        return IrCall(
+            extern=channel.source.extern,
+            entry=channel.source.entry,
+            kwargs=kwargs,
+            binds=binds,
+            tgt=tgt
+        )
+    else:
+        raise Exception(f"Unexpected channel source: {channel.source}")
+
+def compile_prompt(ast: AstPrompt, program: IrProgram, ctx:Context):
+    prompt = IrPrompt(name=ast.name)
+    values = {} # TODO from global and prompt variables
+    append_fields(
+        prompt=prompt,
+        fields=ast.fields,
+        parent=prompt,
+        ihn_path=[ast.name],
+        values=values,
+        program=program,
+        ctx=ctx
+    )
+
+    for annotation in ast.annotations:
+        annot = annotation.label.eval(values)
+        if len(annotation.what.steps) > 0:
+            path = [ast.name] + [ s.name for s in annotation.what.steps ]
+            path = '.'.join(path)
+            ctx.fields[path].desc.append(annot)
+        else:
+            prompt.desc.append(annot)
+
+    for channel in ast.channels:
+        prompt.channels.append(compile_channel(channel, values))
+
+    # TODO flows: List[Flow]
+
+    # TODO returns: Optional[RetBlock]
+
+    return prompt
+
 def compile(arch:"CogArch", tag:str, source:str):
     program = IrProgram()
     ctx = Context()
@@ -198,45 +274,7 @@ def compile(arch:"CogArch", tag:str, source:str):
     ctx.formats.update({ s.name : s for s in ast.formats })
     ctx.structs.update({ s.name : s for s in ast.structs })
 
-    for p in ast.prompts:
-        prompt = IrPrompt(name=p.name)
-        values = {} # TODO from global and promt variables
-        append_fields(
-            prompt=prompt,
-            fields=p.fields,
-            parent=prompt,
-            ihn_path=[p.name],
-            values=values,
-            program=program,
-            ctx=ctx
-        )
-        program.prompts.update({ prompt.name : prompt })
-        for annotation in p.annotations:
-            annot = annotation.label.eval(values)
-            if len(annotation.what.steps) > 0:
-                path = [p.name] + [ s.name for s in annotation.what.steps ]
-                path = '.'.join(path)
-                ctx.fields[path].desc.append(annot)
-            else:
-                prompt.desc.append(annot)
-        for channel in p.channels:
-            assert not channel.target.is_input
-            assert channel.target.prompt is None
-            tgt = [ ( s.name, None if s.slice is None else s.slice.start.eval(values) ) for s in channel.target.steps ]
-            if isinstance(channel.source, AstPath):
-                assert len(channel.source.steps) == 1
-                assert channel.source.steps[0].slice is None
-                src = [ ( s.name, None if s.slice is None else s.slice.start.eval(values) ) for s in channel.source.steps ]
-                if channel.source.is_input:
-                    prompt.channels.append(IrInput(src=src, tgt=tgt))
-                elif channel.source.prompt is not None:
-                    prompt.channels.append(IrDataflow(prompt=channel.source.prompt.name, src=src, tgt=tgt))
-                else:
-                    prompt.channels.append(IrDataflow(prompt=None, src=src, tgt=tgt))
-            elif isinstance(channel.source, AstCall):
-                raise NotImplementedError(f"Channel with Call source: {channel.source}")
-            else:
-                raise Exception(f"Unexpected channel source: {channel.source}")
+    program.prompts.update({ prompt.name : compile_prompt(prompt, program, ctx) for prompt in ast.prompts })
 
     stas = {}
     for (ptag,prompt) in program.prompts.items():
@@ -245,4 +283,4 @@ def compile(arch:"CogArch", tag:str, source:str):
         sta.build_concrete()
         stas.update({ptag:sta})
 
-    return CogAutomaton(tag=tag, arch=arch, prompts=stas)
+    return CogAutomaton(tag=tag, arch=arch, program=program, prompts=stas)

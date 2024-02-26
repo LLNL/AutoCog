@@ -1,0 +1,64 @@
+format correctness {
+    is enum("yes","no","maybe");
+    annotate "Evaluation of the correctness of a statement, can be yes, no, or maybe.";
+}
+
+prompt main {
+    is {
+        topic is text<20>;
+        question is text<50>;
+        choices[4] is {
+            value is text<30>;
+            correct is correctness;
+        }
+        answer is select(.choices);
+    }
+    channel {
+        to .topic    from ?topic;
+        to .question from ?question;
+        to .choices call {
+            entry mmlu_annot;
+            kwarg topic    from ?topic;
+            kwarg question from ?question;
+            kwarg choice   map  ?choices;
+            bind choice as value;
+        }
+    }
+    return {
+        from .answer;
+    }
+    annotate {
+        _ as "You are answering a multiple choice question. You have been given the opportunity to look at each possible answer individually to decide whether or not they could be correct.";
+        .topic           as "the general category from which the question was taken";
+        .question        as "the question that you have to answer";
+        .choices         as "the four possible choices to answer the question, only one is really correct";
+        .choices.value   as "the value of the choice";
+        .choices.correct as "your independent evaluation of whether or not this choice could be correct";
+        .answer          as "you pick the index of the choice that best answer the question";
+    }
+}
+
+prompt annot {
+    is {
+        topic    is text<20>;
+        question is text<50>;
+        choice   is text<30>;
+        correct  is correctness;
+    }
+    channel {
+        to .topic    from ?topic;
+        to .question from ?question;
+        to .choice   from ?choice;
+    }
+    return {
+        from .choice;
+        from .correct;
+    }
+    annotate {
+        _ as "You are answering a multiple choice question. You must evaluate one of the proposed answer to this question";
+        .topic           as "the general category from which the question was taken";
+        .question        as "the question that you have to answer";
+        .choice          as "one of the proposed answer to this question";
+        .correct         as "do you know if this answer is correct or not, then use yes or no. If unsure use maybe.";
+    }
+}

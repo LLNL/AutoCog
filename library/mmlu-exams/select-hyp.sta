@@ -1,0 +1,47 @@
+prompt main {
+    is {
+        topic is text<20>;
+        question is text<50>;
+        hyphothesis is text<20>;
+    }
+    channel {
+        to .topic    from ?topic;
+        to .question from ?question;
+    }
+    flow {
+        to choose;
+    }
+    annotate {
+        _ as "You are answering a multiple choice questionnaire.";
+        .topic           as "the general category from which the question was taken";
+        .question        as "the question that you have to answer";
+        .hyphothesis     as "your guess at what the answer should be";
+    }
+}
+
+prompt choose {
+    is {
+        topic is text<20>;
+        question is text<50>;
+        hyphothesis is text<20>;
+        choices[4] is text<40>;
+        answer is select(.choices);
+    }
+    channel {
+        to .topic       from ?topic;
+        to .question    from ?question;
+        to .hyphothesis from main.hyphothesis;
+        to .choices     from ?choices;
+    }
+    return {
+        from .answer;
+    }
+    annotate {
+        _ as "You are answering a multiple choice questionnaire.";
+        .topic           as "the general category from which the question was taken";
+        .question        as "the question that you have to answer";
+        .hyphothesis     as "your guess at what the answer should be";
+        .choices         as "the four possible choices to answer the question, only one is correct";
+        .answer          as "you pick the index of the choice that best answer the question";
+    }
+}
