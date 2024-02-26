@@ -1,0 +1,23 @@
+prompt main {
+    is {
+        topic is text<20>;
+        question is text<50>;
+        choices[4] is text<40>;
+        answer is repeat(.choices);
+    }
+    channel {
+        to .topic    from ?topic;
+        to .question from ?question;
+        to .choices  from ?choices;
+    }
+    return {
+        from .answer;
+    }
+    annotate {
+        _ as "You are answering a multiple choice questionnaire.";
+        .topic           as "the general category from which the question was taken";
+        .question        as "the question that you have to answer";
+        .choices         as "the four possible choices to answer the question, only one is correct";
+        .answer          as "you repeat verbatim the choice that best answer the question";
+    }
+}

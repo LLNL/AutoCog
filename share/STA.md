@@ -7,7 +7,7 @@ Working on language design:
  - [Execute](execute.ipynb): working on the execution model
  - [Samples](samples.ipynb): design samples, semantically correct while not always making sense (using extra variables or missing annotations to test features)
 
-![Full flow of STA+: from language to execution](./figure.png)
+![Full flow of STA+: from language to execution](./compile-sta.png)
  
 ## TODOs
 

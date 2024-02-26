@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from .vocab import Token, Vocab
 from .actions import Action, Choose, Text, Complete
-from ..lm.lm import LM, GreedyLM
+from ..lm.lm import LM
 
 import numpy
 
@@ -24,21 +24,21 @@ class TokenChoiceTree:
         tree = self.children[tok]
         return tree if len(sequence) == 1 else tree.add_tokens(sequence[1:])
 
-    def decode(self, llm:LM):
-        return '' if self.token is None else llm.detokenize([self.token])
+    def decode(self, lm:LM):
+        return '' if self.token is None else lm.detokenize([self.token])
 
-    def eval(self, llm:GreedyLM, prompt:str):
+    def eval(self, lm:LM, prompt:str):
         if self.token is not None:
-            prompt += self.decode(llm)
+            prompt += self.decode(lm)
 
-        probs = numpy.exp(llm.greedy(prompt))
+        probs = numpy.exp(lm.greedy(prompt))
         if len(self.children) == 0:
             return [ [] ]
         else:
             tails = []
             for tree in self.children.values():
                 tree.proba = probs[tree.token]
-                tails += [ [ ( tree.token, tree.proba ) ] + tail for tail in tree.eval(llm, prompt) ]
+                tails += [ [ ( tree.token, tree.proba ) ] + tail for tail in tree.eval(lm, prompt) ]
             return tails
 
     def depthfirst(self):
@@ -46,14 +46,14 @@ class TokenChoiceTree:
         for c in self.children.values():
             yield from c.depthfirst()
 
-    def toGraphViz(self, llm):
+    def toGraphViz(self, lm):
         cnt = 0
         dotstr = ""
         for t in self.depthfirst():
             t.id = cnt
             cnt += 1
             if t.parent is not None:
-                label = f"{t.decode(llm)}"
+                label = f"{t.decode(lm)}"
             else:
                 label = "ROOT"
             dotstr += f'n_{t.id} [label="{label}"];'
@@ -89,12 +89,27 @@ class TokenBeamTree:
 
 class FiniteTokenTree(BaseModel):
     text:     str = ''
-    token:    List[Token] = []
+    tokens:   List[Token] = []
     probas:   Optional[List[float]] = None
     children: List["FiniteTokenTree"] = []
 
     id: Optional[int] = None
     parent: Optional["FiniteTokenTree"] = None
+
+    def collect(self, text: str = '', tokens: List[Token] = [], probas:List[float] = []):
+        if len(self.children) == 0:
+            return [ (text, tokens, probas) ]
+        results = []
+        for child in self.children:
+            results += child.collect(
+                text=text+self.text,
+                tokens=tokens+self.tokens,
+                probas=probas if self.probas is None else probas + self.probas
+            )
+        return results
+
+    def best(self):
+        return list(sorted([ (text, tokens, probas, numpy.prod(probas)) for (text,tokens,probas) in self.collect() ], key=lambda x: x[3] ))[-1]
 
     def depthfirst(self):
         yield self

@@ -117,12 +117,6 @@ class Automaton(BaseModel):
     abstracts: Dict[str,AbstractState] = {}
     concretes: Dict[str,ConcreteState] = {}
 
-    def get_abstract(self, path:List[Tuple[str,Optional[int]]]):
-        pass
-
-    def get_concrete(self, path:List[Tuple[str,Optional[int]]]):
-        pass
-    
     def build_abstract(self):
         assert len(self.abstracts) == 0
         root = AbstractState()
@@ -460,7 +454,22 @@ class Automaton(BaseModel):
         fta.connect('root', self.instantiate_rec(syntax=syntax, frame=stacks[self.prompt.name][-1], fta=fta, concrete=self.concretes['root@']))
 
         return fta
-        
+
+    def parse(self, text:str, syntax: Syntax, stacks: Any):
+        next = None
+        result = None
+
+        text = text.split('\nstart:\n')[2]
+
+        for (l,line) in enumerate(text.split('\n')):
+            print(f"{l}: {line}")
+
+        frame = stacks[self.prompt.name][-1]
+        import json
+        print(f"frame:\n{json.dumps(dict(frame), indent=4)}")
+
+        return (next, result)
+
     def toGraphViz_abstract(self):
         dotstr = ''
         for state in self.abstracts.values():

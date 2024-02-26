@@ -9,7 +9,7 @@ AutoCog primary goal is to provide the essential components for constructing com
 
 > [!WARNING]
 > As of version v0.3, the priority is to build the actual programming model.
-> See [share/sta](https://github.com/LLNL/AutoCog/tree/wip/share/sta) for progress, it will hopefully be ready by the end of October.
+> See [share/sta](https://github.com/LLNL/AutoCog/tree/wip/share/STA.md) for progress, it will hopefully be ready by the end of October.
 > The proto-language is deprecated and mostly broken. I might go fix it if anyone ask for it.
 
 [![Experiments for version 1 of the CGO-24 paper](./share/cgo24/v1/composite.png)](./share/cgo24/v1)
