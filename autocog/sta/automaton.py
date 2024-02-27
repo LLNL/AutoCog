@@ -90,7 +90,10 @@ class ConcreteState(BaseModel):
         return ','.join(map(str,self.indices))
 
     def path(self):
-        return list(zip([ p.tag() for p in self.abstract.parents() ],self.indices))
+        res = []
+        for (p,i) in zip(self.abstract.parents(), self.indices):
+            res.append( (p.name, i if p.is_list() else None) )
+        return res
 
     def label(self):
         return ConcreteState.make_label(self.abstract,self.indices)
@@ -478,7 +481,6 @@ class Automaton(BaseModel):
         return fta
 
     def parse(self, ftt:FTT, syntax: Syntax, stacks: Any):
-        next = None
         result = None
 
         # scoring = lambda probas: numpy.prod(probas)
@@ -488,21 +490,60 @@ class Automaton(BaseModel):
         results = [ (text, scoring(probas)) for (text,tokens,probas) in results ]
         results = list(sorted(results, key=lambda x: x[1] ))
 
-        for (t,(text,proba)) in enumerate(results):
-            lines = text.split('\nstart:\n')[2].split('\n')
-            print(f"{t}: {proba}")
-            for (l,line) in enumerate(lines):
-                print(f"{t} > {l}: {line}")
+        # for (t,(text,proba)) in enumerate(results):
+        #     lines = text.split('\nstart:\n')[2].split('\n')
+        #     print(f"{t}: {proba}")
+        #     for (l,line) in enumerate(lines):
+        #         print(f"{t} > {l}: {line}")
 
         lines = results[-1][0].split('\nstart:\n')[2].split('\n')
-        # for (l,line) in enumerate(lines):
-        #     print(f"{l}: {line}")
 
+        abstracts = { st.label() : ( st, {} ) for st in self.abstracts.values() }
+        
         frame = stacks[self.prompt.name][-1]
-        import json
-        print(f"frame:\n{json.dumps(dict(frame), indent=4)}")
+        prompts = { tag : state.prompt(syntax) for (tag,state) in self.concretes.items() if tag != 'root@' }
+        curr = self.concretes['root@']
+        idx = 0
+        data = []
+        while idx < len(lines) - 1:
+            line = lines[idx]
+            # print(f"{idx}: {line}")
+            value = None
+            for succ in curr.successors:
+                if line.startswith(prompts[succ]):
+                    curr = self.concretes[succ]
+                    value = line[len(prompts[succ]):]
+                    break
+            assert value is not None
+            lbl = curr.label()
+            if frame.state[lbl] is None:
+                frame.state[lbl] = True
+                data.append( (curr,value) )
+            idx += 1
 
-        return (next, result)
+        to_concrete_label = lambda path: '.'.join([ p if i is None else f"{p}[{i}]" for (p,i) in path ])
+        for (curr,value) in data:
+            if curr.abstract.field.is_list():
+                path = curr.path()
+                list_lbl = to_concrete_label(path[:-1] + [ ( path[-1][0], None) ])
+                # statements are in order so I only care about the last so I simply overwrite
+                frame.counts.update({ list_lbl : path[-1][1] + 1 })
+
+        for (curr,value) in data:
+            if not curr.abstract.field.is_record():
+                fmt = curr.abstract.field.format
+                if isinstance(fmt, IrChoice) and fmt.mode == 'select':
+                    value = int(value)
+                frame.write(abstracts, curr.path(), value)
+
+        assert lines[-1].startswith("next: ")
+        next = lines[-1][len("next: "):]
+        next = self.prompt.flows[next]
+
+        # import json
+        # print(f"frame:\n{json.dumps(dict(frame), indent=4)}")
+
+        return next
 
     def toGraphViz_abstract(self):
         dotstr = ''

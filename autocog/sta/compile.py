@@ -273,12 +273,19 @@ def compile_prompt(ast: AstPrompt, program: IrProgram, ctx:Context):
         tgt = 'return' if ast.returns.alias is None else ast.returns.alias.eval(values)
         assert not tgt in prompt.flows
         fields = {}
-        for field in ast.returns.fields:
+        if len(ast.returns.fields) == 1 and (ast.returns.fields[0].rename is None or ast.returns.fields[0].rename == '_'):
+            field = ast.returns.fields[0]
             assert not field.field.is_input
             assert field.field.prompt is None
             path = compile_steps(field.field.steps, values)
-            fld = path[-1][0] if field.rename is None else field.rename.eval(values)
-            fields.update({ fld : path })
+            fields.update({ '_' : path })
+        else:
+            for field in ast.returns.fields:
+                assert not field.field.is_input
+                assert field.field.prompt is None
+                path = compile_steps(field.field.steps, values)
+                fld = path[-1][0] if field.rename is None else field.rename.eval(values)
+                fields.update({ fld : path })
         prompt.flows.update({ tgt : IrReturn(fields=fields) })
 
     return prompt

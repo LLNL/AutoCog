@@ -23,12 +23,17 @@ class Frame(BaseModel):
     data: Dict = {}
     
     def read(self, path):
+        # print(f"path={path}")
         data = self.data
+        # print(f"data={data}")
         for i in range(len(path)):
             (lbl,idx) = path[i]
+            # print(f"lbl={lbl} idx={idx}")
             data = data[lbl]
+            # print(f"data[lbl]={data}")
             if idx is not None:
                 data = data[idx]
+                # print(f"data[idx]={data}")
         return data
 
     def ravel_rec(self, path, data):
