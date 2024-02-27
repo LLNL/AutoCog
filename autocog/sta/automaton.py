@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 import copy
 import time
+import numpy
 
 from .ir import Prompt     as IrPrompt
 from .ir import Field      as IrField
@@ -20,6 +21,7 @@ from .runtime import Frame
 from .syntax import Syntax
 
 from ..fta.automaton import FiniteThoughtAutomaton as FTA
+from ..fta.automaton import FiniteTokenTree as FTT
 from ..fta.actions import Action, Choose, Complete, Text
 
 class AbstractState(BaseModel):
@@ -371,7 +373,7 @@ class Automaton(BaseModel):
                     path = [ ( p.name, i if p.is_list() else None ) for (p,i) in zip(successor.abstract.parents(), successor.indices) ]
                     fta.create(uid=uid, cls=Text, text=frame.read(path))
                 elif isinstance(fmt, IrCompletion):
-                    fta.create(uid=uid, cls=Complete, length=fmt.length, stops=['\n'])
+                    fta.create(uid=uid, cls=Complete, length=fmt.length, stop='\n')
                 elif isinstance(fmt, IrEnum):
                     fta.create(uid=uid, cls=Choose, choices=fmt.values)
                 elif isinstance(fmt, IrChoice):
@@ -455,18 +457,46 @@ class Automaton(BaseModel):
 
         header = syntax.header_pre_post[0] + header + syntax.header_pre_post[1]
         fta.create( uid='root', cls=Text, text=header + '\nstart:\n')
+
         fta.connect('root', self.instantiate_rec(syntax=syntax, frame=stacks[self.prompt.name][-1], fta=fta, concrete=self.concretes['root@']))
+        
+        fta.create( uid='next.field', cls=Text, text='next: ')
+        for (tag,act) in fta.actions.items():
+            if tag != 'next.field' and len(act.successors) == 0:
+                act.successors.append('next.field')
+
+        next_choices = list(self.prompt.flows.keys())
+        assert len(next_choices) > 0
+        if len(next_choices) == 1:
+            fta.create( uid='next.choice', cls=Text, text=next_choices[0])
+        else:
+            fta.create( uid='next.choice', cls=Choose, choices=next_choices)
+        fta.create( uid='next.endl', cls=Text, text='\n')
+        fta.connect('next.field', 'next.choice')
+        fta.connect('next.choice','next.endl')
 
         return fta
 
-    def parse(self, text:str, syntax: Syntax, stacks: Any):
+    def parse(self, ftt:FTT, syntax: Syntax, stacks: Any):
         next = None
         result = None
 
-        text = text.split('\nstart:\n')[2]
+        # scoring = lambda probas: numpy.prod(probas)
+        scoring = lambda probas: numpy.power(numpy.prod(probas), 1./len(probas))
 
-        for (l,line) in enumerate(text.split('\n')):
-            print(f"{l}: {line}")
+        results = ftt.collect()
+        results = [ (text, scoring(probas)) for (text,tokens,probas) in results ]
+        results = list(sorted(results, key=lambda x: x[1] ))
+
+        for (t,(text,proba)) in enumerate(results):
+            lines = text.split('\nstart:\n')[2].split('\n')
+            print(f"{t}: {proba}")
+            for (l,line) in enumerate(lines):
+                print(f"{t} > {l}: {line}")
+
+        lines = results[-1][0].split('\nstart:\n')[2].split('\n')
+        # for (l,line) in enumerate(lines):
+        #     print(f"{l}: {line}")
 
         frame = stacks[self.prompt.name][-1]
         import json

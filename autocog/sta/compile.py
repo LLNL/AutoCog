@@ -37,6 +37,8 @@ from .ir import Kwarg      as IrKwarg
 from .ir import Call       as IrCall
 from .ir import Dataflow   as IrDataflow
 from .ir import Input      as IrInput
+from .ir import Control    as IrControl
+from .ir import Return     as IrReturn
 
 from .automaton import Automaton as STA
 from ..arch.cogs import Automaton as CogAutomaton
@@ -259,9 +261,25 @@ def compile_prompt(ast: AstPrompt, program: IrProgram, ctx:Context):
     for channel in ast.channels:
         prompt.channels.append(compile_channel(channel, values))
 
-    # TODO flows: List[Flow]
+    for flow in ast.flows:
+        tgt = flow.prompt if flow.alias is None else flow.alias.eval(values)
+        assert not tgt in prompt.flows
 
-    # TODO returns: Optional[RetBlock]
+        limit = 1 if flow.limit is None else flow.limit.eval(values)
+        ctrl = IrControl( prompt=flow.prompt, limit=limit )
+        prompt.flows.update({ tgt : ctrl })
+
+    if ast.returns is not None:
+        tgt = 'return' if ast.returns.alias is None else ast.returns.alias.eval(values)
+        assert not tgt in prompt.flows
+        fields = {}
+        for field in ast.returns.fields:
+            assert not field.field.is_input
+            assert field.field.prompt is None
+            path = compile_steps(field.field.steps, values)
+            fld = path[-1][0] if field.rename is None else field.rename.eval(values)
+            fields.update({ fld : path })
+        prompt.flows.update({ tgt : IrReturn(fields=fields) })
 
     return prompt
 

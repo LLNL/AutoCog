@@ -84,17 +84,17 @@ class Complete(Action):
     length: int = 1
     beams:  int = 1
     ahead:  int = 1
-    stops:  List[str]
+    stop:   str = ''
 
     seeds:  Optional[List[str]]
     vocab:  Vocab
 
-    def __init__(self, uid:str, length:int, stops: List[str], seeds: Optional[List[str]] = None, successors: List[str]=[]):
-        super().__init__(uid=uid, successors=successors, length=length, stops=stops, seeds=seeds, vocab=Vocab())
+    def __init__(self, uid:str, length:int, stop: str='', seeds: Optional[List[str]] = None, successors: List[str]=[]):
+        super().__init__(uid=uid, successors=successors, length=length, stop=stop, seeds=seeds, vocab=Vocab())
 
     def prepare(self, lm):
         if self.seeds is not None:
-            vocab.prepare(lm, self.seeds + self.stops)
+            vocab.prepare(lm, self.seeds + [self.stop])
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         raise NotImplementedError()

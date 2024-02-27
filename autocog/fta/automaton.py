@@ -61,31 +61,25 @@ class TokenChoiceTree:
                 dotstr += f'n_{t.parent.id} -> n_{t.id};'
         return dotstr
 
-class TokenBeamTree:
-    def __init__(self, token=None, depth=0, parent=None):
-        self.token = token
-        self.depth = depth
-        self.parent = parent # only used for GraphViz
-        self.children = {}
-        self.proba = None
+def beam_search(lm: LM, text: str, tokens: List[Token], vocab:Vocab, stop:str, length: int, beams: int, ahead: int):
+    assert beams == 1
+    assert ahead == 1
+    assert vocab.bounds is None
 
-    @staticmethod
-    def search(lm: LM, text: str, tokens: List[Token], vocab:Vocab, stops:List[str], length: int, beams: int, ahead: int):
-        assert beams == 1
-        assert ahead == 1
-        assert vocab.bounds is None
+    new_tokens = []
+    probas = []
+    full_text = lm.detokenize(tokens)
+    while len(new_tokens) < length:
+        prob = numpy.exp(lm.greedy(full_text))
+        new_token = numpy.argmax(prob)
+        new_full_text = lm.detokenize(tokens + new_tokens + [new_token])
+        if stop is not None and new_full_text.endswith(stop):
+            break
+        probas.append(prob[new_token])
+        new_tokens.append(new_token)
+        full_text = new_full_text
 
-        new_tokens = []
-        probas = []
-        full_text = lm.detokenize(tokens)
-        while not any([ full_text.endswith(stop) for stop in stops ]) and len(new_tokens) < length:
-            prob = numpy.exp(lm.greedy(full_text))
-            new_token = numpy.argmax(prob)
-            probas.append(prob[new_token])
-            new_tokens.append(new_token)
-            full_text = lm.detokenize(tokens + new_tokens)
-
-        return [ ( full_text[len(text):], new_tokens, probas ) ]
+    return [ ( full_text[len(text):], new_tokens, probas ) ]
 
 class FiniteTokenTree(BaseModel):
     text:     str = ''
@@ -107,9 +101,6 @@ class FiniteTokenTree(BaseModel):
                 probas=probas if self.probas is None else probas + self.probas
             )
         return results
-
-    def best(self):
-        return list(sorted([ (text, tokens, probas, numpy.prod(probas)) for (text,tokens,probas) in self.collect() ], key=lambda x: x[3] ))[-1]
 
     def depthfirst(self):
         yield self
@@ -187,7 +178,7 @@ class FiniteThoughtAutomaton(BaseModel):
             return trees
         elif isinstance(action, Complete):
             trees = []
-            for (new_text, new_tokens, probas) in TokenBeamTree.search(lm, text, tokens, action.vocab, action.stops, action.length, action.beams, action.ahead):
+            for (new_text, new_tokens, probas) in beam_search(lm, text, tokens, vocab=action.vocab, stop=action.stop, length=action.length, beams=action.beams, ahead=action.ahead):
                 tree = FiniteTokenTree(text=new_text, tokens=new_tokens, probas=probas)
                 if len(action.successors) == 1:
                     act = self.actions[action.successors[0]]

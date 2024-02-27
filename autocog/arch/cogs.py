@@ -32,8 +32,7 @@ class Automaton(Cog):
             fta = sta.instantiate(syntax=self.arch.syntax, stacks=stacks, inputs=inputs)
             fta.simplify()
             ftt = fta.greedy(lm=self.arch.lm)
-            text = ftt.best()[0]
-            (next, result) = sta.parse(syntax=self.arch.syntax, stacks=stacks, text=text)
+            (next, result) = sta.parse(syntax=self.arch.syntax, stacks=stacks, ftt=ftt)
             if next is None:
                 return result
             else:

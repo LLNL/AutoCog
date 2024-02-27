@@ -31,6 +31,8 @@ class Path(BaseModel):
         res += '.'.join([ s[0] + range_to_str(s[1]) for s in self.steps ])
         return res
 
+SrcPath = List[Tuple[str,Optional[int]]]
+
 class Format(Object):
     refname: Optional[str] = None
 
@@ -75,10 +77,17 @@ class Record(Object):
 class Channel(BaseModel):
     tgt: List[Tuple[str,Optional[int]]]
 
+class Control(BaseModel):
+    prompt: str
+    limit: int
+
+class Return(BaseModel):
+    fields: Dict[str,SrcPath]
+
 class Prompt(Object):
-    fields:   List[Field]   = []
+    fields:   List[Field] = []
     channels: List[Channel] = []
-    flows:    List[Any]     = [] # TODO Any?
+    flows:    Dict[str,Union[Control,Return]] = {}
 
     def mechanics(self, mech, indent):
         mechs  = [ 'start:' ]
@@ -142,8 +151,6 @@ class Choice(Format):
         return f'{self.mode}({self.path.str()})'
 
 # Specialization of `Channel`
-
-SrcPath = List[Tuple[str,Optional[int]]]
 
 class Kwarg(BaseModel):
     is_input: bool
