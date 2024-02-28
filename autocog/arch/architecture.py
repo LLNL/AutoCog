@@ -17,18 +17,16 @@ class CognitiveArchitecture(BaseModel):
     orchestrator: Orchestrator
     lm: LM
     syntax: Syntax
-    cogs: Dict[str,Cog] = {}
 
     def __init__(self, lm: LM, syntax: Syntax, Orch=Serial, **kwargs):
         super().__init__(orchestrator=Orch(**kwargs), lm=lm, syntax=syntax)
 
     def reset(self):
         """Reset the state of stateful Cogs. Usefull when testing tools"""
-        for cog in self.cogs.values():
+        for cog in self.orchestrator.cogs.values():
             cog.reset()
 
     def register(self, cog:Cog):
-        self.cogs.update({cog.tag:cog})
         self.orchestrator.cogs.update({cog.tag:cog})
 
     def load(self, tag:str, filepath:Optional[str]=None, program:Optional[str]=None, language:Optional[str]=None, **kwargs):
@@ -55,20 +53,22 @@ class CognitiveArchitecture(BaseModel):
         self.register(cog)
         return cog
     
-    async def __call__(self, tag:str, **inputs):
-        return (await self.orchestrator.execute(jobs=[ (tag,inputs) ], pid=0, progress=False))[0][0]
+    async def __call__(self, __tag:str, __entry:str='main', **inputs):
+        return (await self.orchestrator.execute(jobs=[ (__tag,__entry,inputs) ], parent=0, progress=False))[0]
 
     async def run(self, commands, progress:bool=True):
         jobs = []
         for cmd in commands:
-            tag = cmd['tag']
-            del cmd['tag']
-            jobs.append( (tag,cmd) )
-        return await self.orchestrator.execute(jobs=jobs, pid=0, progress=progress)
+            tag = cmd['__tag']
+            del cmd['__tag']
+            entry = cmd['__entry']
+            del cmd['__entry']
+            jobs.append( (tag,entry,cmd) )
+        return await self.orchestrator.execute(jobs=jobs, parent=0, progress=progress)
 
     def toGraphViz(self):
         dotstr = ''
-        for (tag,cog) in self.cogs.items():
+        for (tag,cog) in self.orchestrator.cogs.items():
             if isinstance(cog, STA):
                 dotstr += "subgraph cluster_sta_" + tag.replace('-','_') + " {\n"
                 dotstr += cog.toGraphViz() + "\n"

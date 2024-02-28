@@ -1,0 +1,61 @@
+format sentence {
+    is text<50>;
+    annotate f"a well formed sentence in english";
+}
+
+format digit {
+    is enum("0","1","2","3","4","5","6","7","8","9");
+    annotate f"a single digit";
+}
+
+prompt main {
+    is {
+        problem is sentence;
+        lhs[5] is digit;
+        rhs[5] is digit;
+    }
+    channel {
+        to .problem from ?problem;
+    }
+    flow {
+        to multiplication;
+    }
+}
+
+prompt multiplication {
+    is {
+        lhs[5] is digit;
+        rhs[5] is digit;
+        product[5] is {
+            factor is digit;
+            value[10] is digit;
+        }
+        sum[10] is {
+            value is digit;
+            carry is digit;
+        }
+        result[10] is digit;
+    }
+    channel {
+        to .lhs from main.lhs;
+        to .rhs from main.rhs;
+    }
+    flow {
+        to reply;
+    }
+}
+
+prompt reply {
+    is {
+        problem is sentence;
+        result[10] is digit;
+        answer is sentence;
+    }
+    channel {
+        to .problem from ?problem;
+        to .result from multiplication.result;
+    }
+    return {
+        from .answer;
+    }
+}

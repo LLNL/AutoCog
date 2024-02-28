@@ -15,6 +15,7 @@ from .ir import Choice     as IrChoice
 from .ir import Input      as IrInput
 from .ir import Dataflow   as IrDataflow
 from .ir import Call       as IrCall
+from .ir import Control    as IrControl
 
 from .runtime import Frame
 
@@ -406,9 +407,9 @@ class Automaton(BaseModel):
 
         return branch
 
-    def assemble(self, stacks: Dict[str,List[Frame]], inputs: Any):
-        if not self.prompt.name in stacks:
-            stacks.update({ self.prompt.name : [] })
+    def assemble(self, arch, page, inputs: Any):
+        if not self.prompt.name in page.stacks:
+            page.stacks.update({ self.prompt.name : [] })
 
         abstracts = { st.label() : ( st, {} ) for st in self.abstracts.values() }
         concretes = {}
@@ -425,28 +426,39 @@ class Automaton(BaseModel):
                 data = inputs
             elif isinstance(channel, IrDataflow):
                 if channel.prompt is None:
-                    data = stacks[self.prompt.name]
+                    data = page.stacks[self.prompt.name]
                 else:
-                    data = stacks[channel.prompt]
-                data = data[-1].data
+                    data = page.stacks[channel.prompt]
+                data = data[-1].data if len(data) > 0 else None
             elif isinstance(channel, IrCall):
-                raise NotImplementedError(f"Call channel: {channel}")
+                import json
+                print(f"Call")
+                print(f" - extern: {channel.extern}")
+                print(f" - entry:  {channel.entry}")
+                print(f" - kwargs:")
+                for (kw,arg) in channel.kwargs.items():
+                    print(f"   {kw}: {arg}")
+                print(f" - binds: {channel.binds}")
+                raise NotImplementedError(f"Call channel")
             else:
                 raise Exception(f"Unexpected channel: {channel}")
 
-            for (fld,idx) in channel.src:
-                data = data[fld]
-                if idx is not None:
-                    assert isinstance(data, list)
-                    data = data[idx]
+            if data is None:
+                # TODO check that target is list with lower bound equal to zero
+                data = []
+            else:
+                for (fld,idx) in channel.src:
+                    data = data[fld]
+                    if idx is not None:
+                        assert isinstance(data, list)
+                        data = data[idx]
 
             frame.locate_and_insert(abstracts, concretes, channel.tgt, data)
 
         frame.finalize(abstracts, concretes)
+        return frame
 
-        stacks[self.prompt.name].append(frame)
-
-    def instantiate(self, syntax: Syntax, stacks: Any, inputs: Any):
+    def instantiate(self, syntax: Syntax, frame: Any, branches: Any, inputs: Any):
         fta = FTA()
 
         header = self.prompt.header(
@@ -456,19 +468,21 @@ class Automaton(BaseModel):
             lst=syntax.format_listing
         )
 
-        self.assemble(stacks, inputs)
-
         header = syntax.header_pre_post[0] + header + syntax.header_pre_post[1]
         fta.create( uid='root', cls=Text, text=header + '\nstart:\n')
 
-        fta.connect('root', self.instantiate_rec(syntax=syntax, frame=stacks[self.prompt.name][-1], fta=fta, concrete=self.concretes['root@']))
+        fta.connect('root', self.instantiate_rec(syntax=syntax, frame=frame, fta=fta, concrete=self.concretes['root@']))
         
         fta.create( uid='next.field', cls=Text, text='next: ')
         for (tag,act) in fta.actions.items():
             if tag != 'next.field' and len(act.successors) == 0:
                 act.successors.append('next.field')
 
-        next_choices = list(self.prompt.flows.keys())
+        next_choices = []
+        for (ptag, flow) in self.prompt.flows.items():
+            if isinstance(flow, IrControl) and flow.prompt in branches and branches[flow.prompt] >= flow.limit:
+                continue
+            next_choices.append(ptag)
         assert len(next_choices) > 0
         if len(next_choices) == 1:
             fta.create( uid='next.choice', cls=Text, text=next_choices[0])
@@ -496,7 +510,8 @@ class Automaton(BaseModel):
         #     for (l,line) in enumerate(lines):
         #         print(f"{t} > {l}: {line}")
 
-        lines = results[-1][0].split('\nstart:\n')[2].split('\n')
+        text = results[-1][0]
+        lines = text.split('\nstart:\n')[2].split('\n')
 
         abstracts = { st.label() : ( st, {} ) for st in self.abstracts.values() }
         

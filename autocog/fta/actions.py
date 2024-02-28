@@ -106,4 +106,4 @@ class Complete(Action):
         return 'ellipse'
 
     def toGraphVizLabel(self):
-        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel() if self.vocab is not None else ''}\nstops={self.stops}\n"
+        return f"length={self.length}\nvocab={self.vocab.toGraphVizLabel() if self.vocab is not None else ''}\nstop={self.stop}\n"

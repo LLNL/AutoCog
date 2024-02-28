@@ -159,7 +159,7 @@ class FiniteThoughtAutomaton(BaseModel):
             else:
                 for ((text_,tokens_), succ) in zip(action.choices, action.successors):
                     actions.update({ text_ : succ })
-            assert len(actions) == len(action.choices)
+            assert len(actions) == len(action.choices), f"action={action} actions={actions}"
 
             tok_probas = tct.eval(lm, text)
             texts = list(list(zip(*action.choices))[0])

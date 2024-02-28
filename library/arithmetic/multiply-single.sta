@@ -1,0 +1,33 @@
+format sentence {
+    is text<50>;
+    annotate f"a well formed sentence in english";
+}
+
+format digit {
+    is enum("0","1","2","3","4","5","6","7","8","9");
+    annotate f"a single digit";
+}
+
+prompt main {
+    is {
+        problem is sentence;
+        lhs[5] is digit;
+        rhs[5] is digit;
+        product[5] is {
+            factor is digit;
+            value[10] is digit;
+        }
+        sum[10] is {
+            value is digit;
+            carry is digit;
+        }
+        result[10] is digit;
+        answer is sentence;
+    }
+    channel {
+        to .problem from ?problem;
+    }
+    return {
+        from .answer;
+    }
+}
