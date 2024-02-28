@@ -20,17 +20,19 @@ class Orchestrator(BaseModel):
     def __init__(self):
         super().__init__(pages=[ Page.root() ])
 
-    def job(self, tag:str, entry:str, inputs:Any, parent:int):
-        if not tag in self.cogs:
-            raise Exception(f"No registered Cog for {tag}")
-        cog = self.cogs[tag]
+    def page(self, cog, entry:str='main', parent:int=0):
         assert cog.has(entry)
-
         pid = len(self.pages)
         page = cog.page(id=pid, parent=parent, entry=entry)
         self.pages.append(page)
         self.pages[parent].subs.append(pid)
+        return page
 
+    def job(self, tag:str, entry:str, inputs:Any, parent:int):
+        if not tag in self.cogs:
+            raise Exception(f"No registered Cog for {tag}")
+        cog = self.cogs[tag]
+        page = self.page(cog, entry, parent)
         return cog(page, **inputs)
 
     def coropage(self, jobs:List[Tuple[str,str,Any]], pid:int):

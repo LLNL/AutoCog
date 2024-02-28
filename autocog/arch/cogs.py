@@ -58,7 +58,9 @@ class Automaton(Cog):
     def has(self, entry):
         return entry in self.prompts
 
-    async def __call__(self, __page: Page, **inputs) -> Any:
+    async def __call__(self, __page: Optional[Page]=None, **inputs) -> Any:
+        if __page is None:
+            __page = self.arch.orchestrator.page(self)
         assert isinstance(__page, AutomatonPage)
         assert len(__page.stacks) == 0
         assert len(__page.ftts) == 0
