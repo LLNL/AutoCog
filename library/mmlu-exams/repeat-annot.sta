@@ -11,7 +11,7 @@ prompt main {
             value is text<30>;
             correct is correctness;
         }
-        answer is select(.choices);
+        answer is repeat(.choices.value);
     }
     channel {
         to .topic    from ?topic;
@@ -34,7 +34,7 @@ prompt main {
         .choices         as "the four possible choices to answer the question, only one is really correct";
         .choices.value   as "the value of the choice";
         .choices.correct as "your independent evaluation of whether or not this choice could be correct";
-        .answer          as "you pick the index of the choice that best answer the question";
+        .answer          as "you repeat verbatim the choice that best answer the question";
     }
 }
 

@@ -21,7 +21,7 @@ class Orchestrator(BaseModel):
         super().__init__(pages=[ Page.root() ])
 
     def page(self, cog, entry:str='main', parent:int=0):
-        assert cog.has(entry)
+        assert cog.has(entry), f"cog: {cog.tag} entry: {entry}"
         pid = len(self.pages)
         page = cog.page(id=pid, parent=parent, entry=entry)
         self.pages.append(page)

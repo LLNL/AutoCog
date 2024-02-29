@@ -1,5 +1,5 @@
 format thought {
-    is text<10>;
+    is text<20>;
     annotate f"a short text representing a single thought, it does not have to be a proper sentence.";
 }
 

@@ -29,10 +29,10 @@ class TfLM(LM):
 
         super().__init__(model=model, tokenizer=tokenizer, device=device, **kwargs)
 
-    def tokenize(self, text:str) -> List[int]:
+    def tokenize(self, text:str, whole:bool=True) -> List[int]:
         return self.tokenizer.encode(text, add_special_tokens=True)
 
-    def detokenize(self, tokens:List[int]) -> str:
+    def detokenize(self, tokens:List[int], whole:bool=True) -> str:
         return self.tokenizer.decode(tokens)
 
     def impl_greedy(self, prompt: str) -> List[float]:

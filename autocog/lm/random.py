@@ -13,10 +13,10 @@ class RLM(LM):
         rvocab = { c : i for (i,c) in  enumerate(vocab) }
         super().__init__(model=None, vocab=vocab, rvocab=rvocab, **kwargs)
 
-    def tokenize(self, text:str) -> List[int]:
+    def tokenize(self, text:str, whole:bool=True) -> List[int]:
         return [ self.rvocab[c] for c in text ]
 
-    def detokenize(self, tokens:List[int]) -> str:
+    def detokenize(self, tokens:List[int], whole:bool=True) -> str:
         return ''.join([ self.vocab[i] for i in tokens ])
 
     def impl_greedy(self, prompt: str):

@@ -25,6 +25,8 @@ from ..fta.automaton import FiniteThoughtAutomaton as FTA
 from ..fta.automaton import FiniteTokenTree as FTT
 from ..fta.actions import Action, Choose, Complete, Text
 
+from ..lm.lm import LM
+
 class AbstractState(BaseModel):
     field: Optional[IrField] = None
 
@@ -407,7 +409,76 @@ class Automaton(BaseModel):
 
         return branch
 
-    def assemble(self, arch, page, inputs: Any):
+    def apply_source_to_data(self, src, data):
+        if data is None:
+            # TODO check that target is list with lower bound equal to zero
+            return []
+
+        for (fld,idx) in src:
+            data = data[fld]
+            if idx is not None:
+                assert isinstance(data, list)
+                data = data[idx]
+        return data
+        
+    def collect_input_or_dataflow(self, channel, page, inputs):
+        if isinstance(channel, IrInput):
+            data = inputs
+
+        elif isinstance(channel, IrDataflow):
+            if channel.prompt is None:
+                data = page.stacks[self.prompt.name]
+                data = data[-2].data if len(data) > 1 else None    
+            else:
+                data = page.stacks[channel.prompt]
+                data = data[-1].data if len(data) > 0 else None
+
+        return self.apply_source_to_data(channel.src, data)
+
+    def jobs_from_kwargs(self, kwargs, page, inputs):
+        jobs = [ {} ]
+        for (kw,arg) in kwargs.items():
+            if arg.is_input:
+                data = inputs
+            else:
+                raise NotImplementedError("Collect non-input kwargs")
+            data = self.apply_source_to_data(arg.path, data)
+            if arg.mapped:
+                assert isinstance(data,list)
+                njobs = []
+                for d in data:
+                    for job in jobs:
+                        njob = copy.deepcopy(job)
+                        njob.update({ kw : d })
+                        njobs.append(njob)
+                jobs = njobs
+            else:
+                for job in jobs:
+                    job.update({ kw : data })
+
+        return jobs
+
+    async def execute_calls(self, arch, channel, page, inputs):
+
+        tag = page.ctag if channel.extern is None else channel.extern
+        jobs = self.jobs_from_kwargs(channel.kwargs, page, inputs)
+        jobs = [ (tag,channel.entry,job) for job in jobs ]
+
+        results = await arch.orchestrator.execute(jobs=jobs, parent=page.id, progress=False)
+
+        data = []
+        for result in results:
+            for (kw,path) in channel.binds.items():
+                assert len(path) == 1
+                assert path[0][1] is None
+                okw = path[0][0]
+                val = result[okw]
+                del result[okw]
+                result.update({ kw : val })
+            data.append(result)
+        return data
+        
+    async def assemble(self, arch, page, inputs: Any):
         if not self.prompt.name in page.stacks:
             page.stacks.update({ self.prompt.name : [] })
 
@@ -421,38 +492,15 @@ class Automaton(BaseModel):
 
         frame_state = { st.label() : None for st in self.concretes.values() if st.abstract.field is not None }
         frame = Frame(state=frame_state)
+        page.stacks[self.prompt.name].append(frame)
+
         for channel in self.prompt.channels:
-            if isinstance(channel, IrInput):
-                data = inputs
-            elif isinstance(channel, IrDataflow):
-                if channel.prompt is None:
-                    data = page.stacks[self.prompt.name]
-                else:
-                    data = page.stacks[channel.prompt]
-                data = data[-1].data if len(data) > 0 else None
+            if isinstance(channel, IrInput) or isinstance(channel, IrDataflow):
+                data = self.collect_input_or_dataflow(channel, page, inputs)
             elif isinstance(channel, IrCall):
-                import json
-                print(f"Call")
-                print(f" - extern: {channel.extern}")
-                print(f" - entry:  {channel.entry}")
-                print(f" - kwargs:")
-                for (kw,arg) in channel.kwargs.items():
-                    print(f"   {kw}: {arg}")
-                print(f" - binds: {channel.binds}")
-                raise NotImplementedError(f"Call channel")
+                data = await self.execute_calls(arch, channel, page, inputs)
             else:
                 raise Exception(f"Unexpected channel: {channel}")
-
-            if data is None:
-                # TODO check that target is list with lower bound equal to zero
-                data = []
-            else:
-                for (fld,idx) in channel.src:
-                    data = data[fld]
-                    if idx is not None:
-                        assert isinstance(data, list)
-                        data = data[idx]
-
             frame.locate_and_insert(abstracts, concretes, channel.tgt, data)
 
         frame.finalize(abstracts, concretes)
@@ -461,15 +509,7 @@ class Automaton(BaseModel):
     def instantiate(self, syntax: Syntax, frame: Any, branches: Any, inputs: Any):
         fta = FTA()
 
-        header = self.prompt.header(
-            mech=syntax.header_mechanic,
-            indent=syntax.prompt_indent,
-            fmt=syntax.header_formats,
-            lst=syntax.format_listing
-        )
-
-        header = syntax.header_pre_post[0] + header + syntax.header_pre_post[1]
-        fta.create( uid='root', cls=Text, text=header + '\nstart:\n')
+        fta.create( uid='root', cls=Text, text=syntax.header(self.prompt))
 
         fta.connect('root', self.instantiate_rec(syntax=syntax, frame=frame, fta=fta, concrete=self.concretes['root@']))
         
@@ -494,22 +534,10 @@ class Automaton(BaseModel):
 
         return fta
 
-    def parse(self, ftt:FTT, syntax: Syntax, stacks: Any):
+    def parse(self, lm:LM, ftt:FTT, syntax: Syntax, stacks: Any):
         result = None
 
-        # scoring = lambda probas: numpy.prod(probas)
-        scoring = lambda probas: numpy.power(numpy.prod(probas), 1./len(probas))
-
-        results = ftt.collect()
-        results = [ (text, scoring(probas)) for (text,tokens,probas) in results ]
-        results = list(sorted(results, key=lambda x: x[1] ))
-
-        # for (t,(text,proba)) in enumerate(results):
-        #     lines = text.split('\nstart:\n')[2].split('\n')
-        #     print(f"{t}: {proba}")
-        #     for (l,line) in enumerate(lines):
-        #         print(f"{t} > {l}: {line}")
-
+        results = ftt.results(lm=lm, normalized=True)
         text = results[-1][0]
         lines = text.split('\nstart:\n')[2].split('\n')
 
@@ -525,11 +553,12 @@ class Automaton(BaseModel):
             # print(f"{idx}: {line}")
             value = None
             for succ in curr.successors:
-                if line.startswith(prompts[succ]):
+                pos = line.find(prompts[succ])
+                if pos >= 0:
                     curr = self.concretes[succ]
-                    value = line[len(prompts[succ]):]
+                    value = line[pos + len(prompts[succ]):].strip()
                     break
-            assert value is not None
+            assert value is not None, f"Line \"{line}\" does not start with any of {[ prompts[succ] for succ in curr.successors ]}"
             lbl = curr.label()
             if frame.state[lbl] is None:
                 frame.state[lbl] = True
@@ -551,12 +580,11 @@ class Automaton(BaseModel):
                     value = int(value)
                 frame.write(abstracts, curr.path(), value)
 
-        assert lines[-1].startswith("next: ")
-        next = lines[-1][len("next: "):]
+        pos = lines[-1].find("next: ")
+        assert pos >= 0, f"Should find \"next: \" in \"{lines[-1]}!\""
+        next = lines[-1][pos+len("next: "):]# .strip()
+        assert next in self.prompt.flows, f"next=\"{next}\" from line=\"{lines[-1]}\" not found in the prompts flow"
         next = self.prompt.flows[next]
-
-        # import json
-        # print(f"frame:\n{json.dumps(dict(frame), indent=4)}")
 
         return next
 

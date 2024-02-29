@@ -637,7 +637,7 @@ class Visitor(NodeVisitor):
 
         mapped = visited_children[4]
         assert len(mapped['children']) == 1
-        mapped = mapped['children'][0]['text'] == 'MAP'
+        mapped = mapped['children'][0]['text'] == 'map'
 
         return Kwarg(
             name=name['text'],

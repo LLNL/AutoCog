@@ -9,7 +9,7 @@ prompt main {
         question is text<50>;
         choices[4] is text<40>;
         work[1:10] is thought;
-        answer is select(.choices);
+        answer is repeat(.choices);
     }
     channel {
         to .topic    from ?topic;
@@ -25,6 +25,6 @@ prompt main {
         .question        as "the question that you have to answer";
         .choices         as "the four possible choices to answer the question, only one is correct";
         .work            as "show your work step-by-step";
-        .answer          as "you pick the index of the choice that best answer the question";
+        .answer          as "you repeat verbatim the choice that best answer the question";
     }
 }

@@ -93,7 +93,7 @@ class Prompt(Object):
         mechs  = [ 'start:' ]
         mechs += [ fld.mechanics(indent) +  ' ' + ' '.join(fld.desc) for fld in self.fields ]
         if len(self.flows) > 0:
-            mechs += [ 'next: ']
+            mechs += [ 'next: select which of ' + ','.join(self.flows.keys()) + " will be the next step." ]
         mechs = '\n'.join(mechs)
         return mech + '\n```\n' + mechs + '\n```'
 
@@ -110,7 +110,7 @@ class Prompt(Object):
         else:
             return ''
 
-    def header(self, mech="You are using the folowing syntax:", indent='> ', fmt="It includes the folowing named formats:", lst='- '):
+    def header(self, mech:str, indent:str, fmt:str, lst:str):
         return ' '.join(self.desc) + '\n' + self.mechanics(mech=mech, indent=indent) + self.formats(fmt=fmt, lst=lst)
 
 class Program(BaseModel):

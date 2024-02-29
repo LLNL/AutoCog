@@ -8,15 +8,21 @@ prompt main {
         topic is text<20>;
         question is text<50>;
         choices[4] is text<40>;
-        work[1:10] is thought;
-        answer is select(.choices);
+        hint[0:1] is thought;
+        answer is repeat(.choices);
+        reflect[1] is thought;
     }
     channel {
         to .topic    from ?topic;
         to .question from ?question;
         to .choices  from ?choices;
+        to .hint     from .reflect;
+    }
+    flow {
+        to main[5] as "retry";
     }
     return {
+        as "ready";
         from .answer;
     }
     annotate {
@@ -24,7 +30,8 @@ prompt main {
         .topic           as "the general category from which the question was taken";
         .question        as "the question that you have to answer";
         .choices         as "the four possible choices to answer the question, only one is correct";
-        .work            as "show your work step-by-step";
-        .answer          as "you pick the index of the choice that best answer the question";
+        .answer          as "you repeat verbatim the choice that best answer the question";
+        .hint            as "this is a hint you gave yourself on a previous attempt";
+        .reflect         as "if you think that your answer is wrong provide a hint for your next attempt";
     }
 }

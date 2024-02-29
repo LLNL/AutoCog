@@ -44,7 +44,7 @@ class Text(Action):
         super().__init__(uid=uid, successors=successors, text=text)
 
     def prepare(self, lm):
-        self.tokens.extend(lm.tokenize(self.text))
+        self.tokens.extend(lm.tokenize(self.text, whole=False))
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         return { self.tokens[step] : 1. } if step < len(self.tokens) else {}
@@ -66,7 +66,7 @@ class Choose(Action):
 
     def prepare(self, lm):
         for choice in self.choices:
-            choice[1].extend(lm.tokenize(choice[0]))
+            choice[1].extend(lm.tokenize(choice[0], whole=False))
 
     def step(self, lm, prompt:List[Token], step:int, min_branch:int, max_branch:int, tok_clip:float) -> Dict[Token,float]:
         raise NotImplementedError(f"Choose.step(prompt={prompt})")

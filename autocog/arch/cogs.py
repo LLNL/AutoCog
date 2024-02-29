@@ -74,13 +74,12 @@ class Automaton(Cog):
                 __page.stacks.update({ ptag : [] })
                 __page.ftts.update({ ptag : [] })
 
-            frame = sta.assemble(self.arch, __page, inputs)
-            __page.stacks[ptag].append(frame)
+            frame = await sta.assemble(self.arch, __page, inputs)
             fta = sta.instantiate(syntax=self.arch.syntax, frame=frame, branches=__page.branches[ptag], inputs=inputs)
             fta.simplify()
             ftt = fta.greedy(lm=self.arch.lm)
             __page.ftts[ptag].append(ftt)
-            next = sta.parse(syntax=self.arch.syntax, stacks=__page.stacks, ftt=ftt)
+            next = sta.parse(lm=self.arch.lm, syntax=self.arch.syntax, stacks=__page.stacks, ftt=ftt)
             if isinstance(next, Return):
                 if len(next.fields) == 1 and '_' in next.fields:
                     return frame.read(next.fields['_'])

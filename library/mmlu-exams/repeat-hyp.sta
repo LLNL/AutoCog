@@ -30,7 +30,7 @@ prompt choose {
         question is text<50>;
         hyphothesis is thought;
         choices[4] is text<40>;
-        answer is select(.choices);
+        answer is repeat(.choices);
     }
     channel {
         to .topic       from ?topic;
@@ -47,6 +47,6 @@ prompt choose {
         .question        as "the question that you have to answer";
         .hyphothesis     as "your guess at what the answer should be";
         .choices         as "the four possible choices to answer the question, only one is correct";
-        .answer          as "you pick the index of the choice that best answer the question";
+        .answer          as "you repeat verbatim the choice that best answer the question";
     }
 }

@@ -1,5 +1,5 @@
 
-from typing import Any, Dict, List, Tuple, Union, Optional, Callable, NamedTuple
+from typing import Any, Dict, List, Tuple, Union, Optional, Callable
 from .lm import LM
 
 try:
@@ -18,14 +18,33 @@ class Llama(LM):
             model=llama_cpp.Llama(model_path=model_path, logits_all=logits_all, verbose=verbose, n_ctx=n_ctx), **kwargs
         )
 
-    def tokenize(self, text:str) -> List[int]:
+    def tokenize(self, text:str, whole:bool=True) -> List[int]:
         if not isinstance(text,str):
             raise Exception(f'text={text}')
-        return self.model.tokenize(bytes(text, 'utf-8'))[1:]
 
-    def detokenize(self, tokens:List[int]) -> str:
-        return self.model.detokenize([1]+tokens).decode("utf-8", errors="ignore")
+        if text == '\n':
+            return [ self.model.token_nl() ]
 
-    def impl_greedy(self, prompt: str) -> List[float]:
-        output = self.model(prompt, max_tokens=1, logprobs=-1, full_logprobs=True)
+        if not whole:
+            text = '\n' + text
+
+        tokens = self.model.tokenize(bytes(text, 'utf-8'))
+
+        if not whole:
+            while tokens[0] != self.model.token_nl():
+                tokens = tokens[1:]
+            return tokens[1:]
+        elif tokens[0] == self.model.token_bos():
+            return tokens[1:]
+        else:
+            return tokens
+
+    def detokenize(self, tokens:List[int], whole:bool=True) -> str:
+        if not whole:
+            tokens = [ self.model.token_nl() ] + tokens
+        tokens = [ self.model.token_bos() ] + tokens + [ self.model.token_eos() ]
+        return self.model.detokenize(tokens).decode("utf-8", errors="ignore")
+
+    def impl_greedy(self, prompt: Union[str,List[int]]) -> List[float]:
+        output = self.model.create_completion(prompt, max_tokens=1, logprobs=-1, full_logprobs=True)
         return output['choices'][0]['logprobs'][0]

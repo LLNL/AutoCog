@@ -1,5 +1,5 @@
 
-from typing import Any, Dict, List, Tuple, Optional, NamedTuple
+from typing import Any, Dict, List, Tuple, Union, Optional, Callable
 from abc import abstractmethod
 from pydantic import BaseModel
 
@@ -25,18 +25,18 @@ class LM(BaseModel):
     growth:float=4.
     
     @abstractmethod
-    def tokenize(self, text:str) -> List[int]:
+    def tokenize(self, text:str, whole:bool=True) -> List[int]:
         """"""
 
     @abstractmethod
-    def detokenize(self, tokens:List[int]) -> str:
+    def detokenize(self, tokens:List[int], whole:bool=True) -> str:
         """"""
 
     @abstractmethod
     def impl_greedy(self, prompt:str):
         """"""
 
-    def greedy(self, prompt:str):
+    def greedy(self, prompt: Union[str,List[int]]):
         delta = self.delta
         errors = []
         while len(errors) < self.retries:
