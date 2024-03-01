@@ -5,24 +5,10 @@
 [![Frontend](https://github.com/LLNL/AutoCog/workflows/frontend/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
 [![Dataflow](https://github.com/LLNL/AutoCog/workflows/dataflow/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
 
-AutoCog primary goal is to provide the essential components for constructing comprehensive programming languages that can be effectively executed by language models (LMs). Through the utilization of these programming languages, it will becomes feasible to implement symbolic AI algorithms on top of LM.
-
-> [!WARNING]
-> As of version v0.3, the priority is to build the actual programming model.
-> See [share/sta](https://github.com/LLNL/AutoCog/tree/wip/share/STA.md) for progress, it will hopefully be ready by the end of October.
-> The proto-language is deprecated and mostly broken. I might go fix it if anyone ask for it.
-
-[![Experiments for version 1 of the CGO-24 paper](./share/cgo24/v1/composite.png)](./share/cgo24/v1)
-
-At present, AutoCog offers Structured Thoughts Automaton (STA) as its sole Programming Model. STA's language is inherently low-level and may present challenges in terms of maintenance. For those interested in delving deeper, we have also made available a [preprint](https://arxiv.org/abs/2306.10196) of our submission to CGO-24. See [share/cgo24/v1](./share/cgo24/v1) for the artifacts of that paper.
-
-As a research software, it is important to note that AutoCog undergoes continuous development, which may result in sudden and non-backward compatible changes. Nonetheless, we strive to maintain an up-to-date [Demo](./demo.ipynb), offering a glimpse into the capabilities of the framework. 
-
-## Current Work
-
-The [share](./share) directory also contains several notepads, particularly the notebooks for [searcher](./share/searcher.ipynb), [reader](./share/reader.ipynb), and [writer](./share/writer.ipynb). The development of these _generic_ STA programs is currently driving the implementation of many features. Particularly, we are building a first set of [unit-tests focused on dataflow](./tests/unittests).
-
-We are developing Finite Thought Automata (FTA) to act as the underlying Machine Model for AutoCog. In a nutshell, FTA enables to express a prompt as a finite automata over the alphabet of the LM. FTA is then used to enforce low-level syntax in the prompt. It ensures that the LM always provides completions that are parseable by the execution model. Initial work on FTA: [source](./autocog/automatons/fta) and [notebook](./share/fta.ipynb) (where we try to force untrained model to ouput numbers as "XX,XXX,XXX.XX" where X is a digit).
+Auotmaton & Cognition explores mechanism to build simple automaton that drive cognitive processes.
+To this end, we defined a programming model, Structured Thoughts, which compiles to a collection of automaton.
+Each automaton defines a prompt and guides its completion.
+Completed prompts are parsed and the etracted data flows to the next prompt.
 
 ## Getting started
 
@@ -47,39 +33,33 @@ Eventually, several notebooks demonstrating various part of AutoCog will be prov
 `python -m autocog --help`
 
 ```
-usage: __main__.py [-h] [--version] [--lm LM] [--program PROGRAM] [--tool TOOL] [--prefix PREFIX] [--tee TEE] [--fmt FMT] [--serve] [--host HOST] [--port PORT] [--debug] [--command COMMAND]
-                   [--opath OPATH]
+usage: __main__.py [-h] [--version] [--orch ORCH] [--gguf GGUF] [--gguf-ctx GGUF_CTX] [--syntax SYNTAX] [--cogs COGS] [--command COMMAND] [--output OUTPUT] [--prefix PREFIX] [--serve] [--host HOST] [--port PORT] [--debug]
 
-options:
-  -h, --help         show this help message and exit
-  --version          show program's version number and exit
-  --lm LM            Inlined JSON or path to a JSON file: `{ "text" : { "cls" : "OpenAI", ... } }` see TODO for details. (default: None)
-  --program PROGRAM  Inlined JSON or path to a JSON file: `{ "writer" : { "filepath" : "./library/writer/simple.sta", ... } }` see TODO for details. (default: None)
-  --tool TOOL        Inlined JSON or path to a JSON file: `{ "search" : { "cls" : "SerpApi", ... } }` see TODO for details. (default: None)
-  --prefix PREFIX    String to identify this instance of AutoCog (used when displaying and saving the prompts) (default: autocog)
-  --tee TEE          Filepath or `stdout` or `stderr`. If present, prompts will be append to that file as they are executed. (default: None)
-  --fmt FMT          Format string used to save individual prompts to files. If present but empty (or `default`), `{p}/{c}/{t}-{i}.txt` is used. `p` is the prefix. `c` is the sequence id of the call. `t`
-                     is the prompt name. `i` is the prompt sequence id. WARNING! This will change as the schema is obsolete! (default: None)
-  --serve            Whether to launch the flask server. (default: False)
-  --host HOST        Host for flask server. (default: localhost)
-  --port PORT        Port for flask server. (default: 5000)
-  --debug            Whether to run the flask server in debug mode. (default: False)
-  --command COMMAND  Inlined JSON or path to a JSON file: `{ 'callee' : 'writer', ... }` see TODO for details. (default: None)
-  --opath OPATH      If present, JSON outputs of the commands will be stored in that file. If missing, they are written to stdout. (default: None)
+optional arguments:
+  -h, --help           show this help message and exit
+  --version            show program's version number and exit
+  --orch ORCH          Type of orchestrator: `serial` or `async`. (default: serial)
+  --gguf GGUF          Load a model from a GGUF file using llama.cpp (and llama-cpp-python) (default: None)
+  --gguf-ctx GGUF_CTX  Context size for GGUF models (default: 4096)
+  --syntax SYNTAX      One of `Llama-2-Chat`, `ChatML`, `Guanaco` or a dictionary of the kwargs to initialize a Syntax object (inlined JSON or path to a file). (default: None)
+  --cogs COGS          Files to load as cog in the architecture, prefix with its identifier else the filename is used. For example, `some/cognitive/mcq.sta` and `my.tool:some/python/tool.py` will load a Structured Thought
+                       Automaton as `mcq` and a Python file as `my.tool`. (default: None)
+  --command COMMAND    Command to be executed by the architecture as a dictionary. `__tag` identify the cog while `__entry` identify the entry point in this cog (defaults to `main`). All other field will be forwarded as
+                       keyworded args. Example: `{ "__tag" : "writer", "__entry" : "main", **kwarg }` (inlined JSON or path to a file). Can also provide one or more list of dictionary. (default: None)
+  --output OUTPUT      Directory where results are stored. (default: /home/tristan/projects/LLM/AutoCog)
+  --prefix PREFIX      String to identify this instance of AutoCog (default: autocog)
+  --serve              Whether to launch the flask server. (default: False)
+  --host HOST          Host for flask server. (default: localhost)
+  --port PORT          Port for flask server. (default: 5000)
+  --debug              Whether to run the flask server in debug mode. (default: False)
 ```
 
 For example, we run commands using:
 ```
-python3 -m autocog --program '{ "writer" : { "filepath":"./library/writer/simple.sta", "content" : "report", "R" : 3, "P" : 2, "N" : 3 } }' \
-                   --lm '{ "text"     : { "cls" : "OpenAI", "config" : { "max_tokens" : 20, "temperature" : 0.4 } } }' \
-                   --lm '{ "thought"  : { "cls" : "OpenAI", "config" : { "max_tokens" : 15, "temperature" : 1.0 } } }' \
-                   --lm '{ "sentence" : { "cls" : "OpenAI", "config" : { "max_tokens" : 30, "temperature" : 0.7 } } }' \
-                   --command '{ "tag" : "writer", "idea" : "using finite automaton to constrain the production of auto-regressive language models"  }'
+python3 -m autocog --gguf /data/models/tinyllama-2-1b-miniguanaco.Q4_K_M.gguf --syntax Guanaco \
+                   --cogs mmlu.repeat_cot:library/mmlu-exams/repeat-cot.sta \
+                   --command '{ "__tag" : "mmlu.repeat_cot", "topic" : "arithmetic", "question" : "What is 3*4+9?", "choices" : [ "16", "21", "39", "42" ] }'
 ```
-This command:
- - build the architecture with one program and 3 LM wrapppers
- - execute the command
- - write `resutls.json`
 
 ### Web Application
 
@@ -94,14 +74,12 @@ Eventually, we want to use these traces for two purposes:
 
 Run the command below at the root of the repository to launch a server. It uses [quart](http://pgjones.gitlab.io/quart).
 ```
-python3 -m autocog --serve --host 0.0.0.0 --port 1001 --program tests/library.json --lm tests/openai.json
+python3 -m autocog --serve --host 0.0.0.0 --port 1001 --cogs mmlu.repeat_cot:library/mmlu-exams/repeat-cot.sta
 ```
-[`tests/library.json`](./tests/library.json) instantiates a few programs from the library.
-[`tests/openai.json`](./tests/openai.json) instantiates OpenAI's GPT 3.5 (`text-davinci-003`).
 
 ![Webapp -- Work in Progress](./share/webapp/webapp.png)]
 
-### Testing
+### Testing (TODO update for v0.4)
 
 Minimal testing with [`pipenv run tests/runall.sh`](./tests/runall.sh):
  - [Unit-tests](./tests/unittests)
@@ -114,7 +92,8 @@ Looking for way to tests the LLM on GitHub (don't want to expose an API key or m
 
 ## Contributing
 
-Contributions are welcome and encouraged!
+Contributions are welcome!
+
 So far there is only one rule: **linear git history** (no merge commits).
 Only the master branch have stable commits, other branches might be rebased without notice.
 

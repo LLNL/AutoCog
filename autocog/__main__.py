@@ -6,13 +6,13 @@ import asyncio
 
 from .utility.args2arch import parseargs
 
-def main(arch, serve, host, port, debug, commands, opath):
+def main(arch, serve, host, port, debug, commands, output):
     if os.path.exists(f'{opath}/frames.json'):
         pass # TODO load existing frames
 
     if commands is not None:
         res = asyncio.run(arch.run(commands))
-        with open(f'{opath}/results.json','w') as F:
+        with open(f'{output}/results.json','w') as F:
             json.dump(res, F, indent=4)
 
     if serve:
