@@ -3,7 +3,7 @@
 
 [![PIP](https://github.com/LLNL/AutoCog/workflows/pip/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
 [![Frontend](https://github.com/LLNL/AutoCog/workflows/frontend/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
-[![Dataflow](https://github.com/LLNL/AutoCog/workflows/dataflow/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
+[![CLI](https://github.com/LLNL/AutoCog/workflows/cli/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
 
 Auotmaton & Cognition explores mechanism to build simple automaton that drive cognitive processes.
 To this end, we defined a programming model, Structured Thoughts, which compiles to a collection of automaton.
@@ -22,15 +22,41 @@ git clone https://github.com/LLNL/AutoCog
 pip install -U ./AutoCog
 ```
 
+### LLM Setup
+
+#### LLama.cpp and GGUF models
+
+We download model from [TheBloke](https://huggingface.co/TheBloke) on Hugging Face.
+For example, you can donwload LlaMa 2 with 7B parameters and tuned for Chat with:
+```
+wget https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_K_M.gguf
+```
+This is a 4 bits version, aka `Q4_K_M` in the name. It is the main model we use for testing.
+
+To run GGUF model, we use a [modified version](https://github.com/tristanvdb/llama-cpp-python/tree/choice-dev) of the `llama-cpp-python` package.
+It provides python bindings and will build `LLama.cpp`.
+Our changes permit us to implement `greedy` completion (returning logprob for all tokens).
+```
+pip install -y git+https://github.com/tristanvdb/llama-cpp-python@choice-dev
+```
+
+> TODO v0.5: connect to low-level API in `llama-cpp-python` so that we can use the default release
+
+#### HuggingFace Transformers
+
+> TODO v0.6: connection for HuggingFace Transformers package (use to have it but not tested)
+
 ### Inside a Notebook
 
 Most of the development is done inside Python notebook (jupiterlab).
-To get started take a look at the [Demo](./demo.ipynb).
 Eventually, several notebooks demonstrating various part of AutoCog will be provided in the [share](./share) folder.
+To get an idea of our progress, take a look at the [WIP Notebook](./share/wip.ipynb).
 
 ### Command line
 
-`python -m autocog --help`
+We are building a command line tool to use AutoCog.
+
+`python3 -m autocog --help`
 
 ```
 usage: __main__.py [-h] [--version] [--orch ORCH] [--gguf GGUF] [--gguf-ctx GGUF_CTX] [--syntax SYNTAX] [--cogs COGS] [--command COMMAND] [--output OUTPUT] [--prefix PREFIX] [--serve] [--host HOST] [--port PORT] [--debug]
@@ -54,11 +80,19 @@ optional arguments:
   --debug              Whether to run the flask server in debug mode. (default: False)
 ```
 
-For example, we run commands using:
+Some examples:
 ```
 python3 -m autocog --gguf /data/models/tinyllama-2-1b-miniguanaco.Q4_K_M.gguf --syntax Guanaco \
                    --cogs mmlu.repeat_cot:library/mmlu-exams/repeat-cot.sta \
                    --command '{ "__tag" : "mmlu.repeat_cot", "topic" : "arithmetic", "question" : "What is 3*4+9?", "choices" : [ "16", "21", "39", "42" ] }'
+```
+```
+python3 -m autocog --gguf /data/models/llama-2-7b-chat.Q4_K_M.gguf --syntax Llama-2-Chat \
+                   --syntax '{ "prompt_with_format" : false, "prompt_with_index" : false, "prompt_indent" : "" }' \
+                   --cogs mmlu.repeat_cot:library/mmlu-exams/repeat-cot.sta \
+                   --cogs mmlu.select_cot:library/mmlu-exams/select-cot.sta \
+                   --command '{ "__tag" : "mmlu.repeat_cot", "topic" : "arithmetic", "question" : "What is 3*4+9?", "choices" : [ "16", "21", "39", "42" ] }' \
+                   --command '{ "__tag" : "mmlu.select_cot", "topic" : "arithmetic", "question" : "What is 3*4+9?", "choices" : [ "16", "21", "39", "42" ] }'
 ```
 
 ### Web Application

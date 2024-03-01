@@ -46,6 +46,10 @@ class Syntax(BaseModel):
     header_mid:  str = '\n'
     header_post: str = '\n'
 
+    prompt_with_format: bool = True
+    prompt_with_index:  bool = True
+    prompt_zero_index:  bool = False
+    
     @staticmethod
     def Llama2Chat(**kwargs):
         kwargs.update(syntax_kwargs['Llama-2-Chat'])

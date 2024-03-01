@@ -52,17 +52,32 @@ class CognitiveArchitecture(BaseModel):
             raise Exception(f"Unrecognized file language: {language}")
         self.register(cog)
         return cog
-    
-    async def __call__(self, __tag:str, __entry:str='main', **inputs):
+
+    def get_single_cog(self):
+        if len(self.orchestrator.cogs) == 0:
+            raise Exception('No Cogs registered when one is expected')
+        if len(self.orchestrator.cogs) > 1:
+            raise Exception('More than one Cogs registered when only one is expected')
+        return list(self.orchestrator.cogs.keys())[0]
+
+    async def __call__(self, __tag:Optional[str]=None, __entry:str='main', **inputs):
+        if __tag is None:
+            __tag = self.get_single_cog()
         return (await self.orchestrator.execute(jobs=[ (__tag,__entry,inputs) ], parent=0, progress=False))[0]
 
     async def run(self, commands, progress:bool=True):
         jobs = []
         for cmd in commands:
-            tag = cmd['__tag']
-            del cmd['__tag']
-            entry = cmd['__entry']
-            del cmd['__entry']
+            if '__tag' in cmd:
+                tag = cmd['__tag']
+                del cmd['__tag']
+            else:
+                tag = self.get_single_cog()
+            if '__entry' in cmd:
+                entry = cmd['__entry']
+                del cmd['__entry']
+            else:
+                entry = 'main'
             jobs.append( (tag,entry,cmd) )
         return await self.orchestrator.execute(jobs=jobs, parent=0, progress=progress)
 

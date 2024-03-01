@@ -1,4 +1,4 @@
-name: dataflow
+name: cli
 
 on:
   push:
@@ -26,4 +26,4 @@ jobs:
     - name: Install
       run: pip install .
     - name: Check
-      run: cd tests/unittests ; python -m dataflow
+      run: ./tests/cli-mmlu.sh

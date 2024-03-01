@@ -43,7 +43,10 @@ class Llama(LM):
         if not whole:
             tokens = [ self.model.token_nl() ] + tokens
         tokens = [ self.model.token_bos() ] + tokens + [ self.model.token_eos() ]
-        return self.model.detokenize(tokens).decode("utf-8", errors="ignore")
+        text = self.model.detokenize(tokens).decode("utf-8", errors="ignore")
+        if text.endswith('<|im_end|>'):
+            text = text[:-len('<|im_end|>')]
+        return text
 
     def impl_greedy(self, prompt: Union[str,List[int]]) -> List[float]:
         output = self.model.create_completion(prompt, max_tokens=1, logprobs=-1, full_logprobs=True)

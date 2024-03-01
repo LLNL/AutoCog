@@ -113,9 +113,17 @@ class ConcreteState(BaseModel):
     def prompt(self, syntax):
         field = self.abstract.field
         indent = syntax.prompt_indent * len(self.indices)
-        fmt = '(record)' if field.is_record() else '(' + field.format.label() + ')'
-        idx = f'[{self.indices[-1]}]' if field.is_list() else ''
-        prompt = indent + self.name() + fmt + idx + ':'
+        prompt = indent + self.name()
+        if syntax.prompt_with_format:
+            fmt = '(record)' if field.is_record() else '(' + field.format.label() + ')'
+            prompt += fmt
+        if syntax.prompt_with_index:
+            idx = self.indices[-1]
+            if not prompt_zero_index:
+                idx += 1
+            idx = f'[{idx}]' if field.is_list() else ''
+            prompt += idx
+        prompt += ':'
         if not field.is_record():
             prompt += ' '
         return prompt

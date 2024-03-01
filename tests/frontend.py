@@ -1,5 +1,5 @@
 
-from autocog.language.sta.frontend import frontend
+from autocog.sta.frontend import frontend
 
 # TODO read from frontend subdir
 programs = ["""

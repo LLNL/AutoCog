@@ -26,4 +26,4 @@ jobs:
     - name: Install
       run: pip install .
     - name: Check
-      run: cd tests/language ; python -m frontend
+      run: python tests/frontend.py

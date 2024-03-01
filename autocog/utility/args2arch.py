@@ -9,7 +9,7 @@ from ..config import version
 from ..arch.architecture import CognitiveArchitecture as CogArch
 from ..arch.orchestrator import Serial, Async
 
-from ..sta.syntax import Syntax
+from ..sta.syntax import Syntax, syntax_kwargs
 
 def argparser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -19,7 +19,7 @@ def argparser():
 
     parser.add_argument('--gguf',     help="""Load a model from a GGUF file using llama.cpp (and llama-cpp-python)""", default=None)
     parser.add_argument('--gguf-ctx', help="""Context size for GGUF models""", default=4096)
-    parser.add_argument('--syntax',   help="""One of `Llama-2-Chat`, `ChatML`, `Guanaco` or a dictionary of the kwargs to initialize a Syntax object (inlined JSON or path to a file).""", default=None)
+    parser.add_argument('--syntax',   help=f"""One of `{'`, `'.join(syntax_kwargs.keys())}` or a dictionary of the kwargs to initialize a Syntax object (inlined JSON or path to a file). If used more than once, only the first can be string, the next ones must be dictionaries, and later values override the earlier ones.""", default=None, action='append')
     parser.add_argument('--cogs',     help="""Files to load as cog in the architecture, prefix with its identifier else the filename is used. For example, `some/cognitive/mcq.sta` and `my.tool:some/python/tool.py` will load a Structured Thought Automaton as `mcq` and a Python file as `my.tool`.""", action='append')
 
     parser.add_argument('--command',  help="""Command to be executed by the architecture as a dictionary. `__tag` identify the cog while `__entry` identify the entry point in this cog (defaults to `main`). All other field will be forwarded as keyworded args. Example: `{ "__tag" : "writer", "__entry" : "main", **kwarg }` (inlined JSON or path to a file). Can also provide one or more list of dictionary.""", action='append')
@@ -58,16 +58,15 @@ def parseargs(argv):
         from autocog.lm import RLM
         lm = RLM()
 
-    if args.syntax == 'Llama-2-Chat':
-        syntax = Syntax.Llama2Chat()
-    elif args.syntax == 'ChatML':
-        syntax = Syntax.ChatML()
-    elif args.syntax == 'Guanaco':
-        syntax = Syntax.Guanaco()
-    elif args.syntax is not None:
-        syntax = Syntax(**parse_json(args.syntax))
-    else:
-        syntax = Syntax()
+    syntax = {}
+    if len(args.syntax) > 0:
+        if args.syntax[0] in syntax_kwargs:
+            syntax.update(syntax_kwargs[args.syntax[0]])
+        else:
+            syntax.update(parse_json(args.syntax))
+        for s in args.syntax[1:]:
+            syntax.update(parse_json(s))
+    syntax = Syntax(**syntax)
 
     arch = CogArch(Orch=Orch, lm=lm, syntax=syntax)
 

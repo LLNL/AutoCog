@@ -1,6 +1,9 @@
 MMLU Exams
 ==========
 
+> DEPRECATED: the content of this folder is from v0.3 and code examples are not valid.
+> The codes of the MMLU-Exams for AutoCog v0.4+ is located in `library/mmlu-exams`.
+
 The Massive Multitask Language Understanding dataset is made of a large number of multiple choices questions on a variety of subjects.
 The MMLU Exams form a collection of programs to guide language models in there search of the correct answer.
 

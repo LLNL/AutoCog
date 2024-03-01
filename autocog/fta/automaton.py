@@ -12,7 +12,10 @@ import numpy
 
 def depthfirst(tree):
     yield tree
-    for c in tree.children.values():
+    children = tree.children
+    if isinstance(children, dict):
+        children = children.values()
+    for c in children:
         c.parent = tree
         yield from c.depthfirst()
 
