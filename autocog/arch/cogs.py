@@ -95,3 +95,9 @@ class Automaton(Cog):
                 raise Exception("Unrecognized flow operation")
 
         raise Exception("Should be unreachable!!!")
+
+    def toGraphViz(self):
+        dotstr = ''
+        for (tag,prompt) in self.prompts:
+            dotstr += prompt.toGraphViz_abstract()
+        return dotstr

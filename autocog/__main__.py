@@ -7,8 +7,8 @@ import asyncio
 from .utility.args2arch import parseargs
 
 def main(arch, serve, host, port, debug, commands, output):
-    if os.path.exists(f'{opath}/frames.json'):
-        pass # TODO load existing frames
+    if os.path.exists(f'{output}/pages.json'):
+        pass # TODO load existing pages
 
     if commands is not None:
         res = asyncio.run(arch.run(commands))
@@ -19,9 +19,9 @@ def main(arch, serve, host, port, debug, commands, output):
         from .utility.server import serve
         serve(arch, host=host, port=port, debug=debug)
 
-    # TODO save all frames
-    # with open(f'{opath}/frames.json','w') as F:
-    #     json.dump(arch.frames, F, indent=4)
+    # TODO save all pages of stacks of frames
+    # with open(f'{opath}/pages.json','w') as F:
+    #     json.dump(arch.orchestrator.pages, F, indent=4)
 
 if __name__ == "__main__":
     main(**parseargs(argv=sys.argv[1:]))

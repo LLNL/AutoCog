@@ -11,7 +11,6 @@
   <div class="tab-buttons">
     <button class="tab-button active" onclick="showTab(0)">Automaton</button>
     <button class="tab-button"        onclick="showTab(1)">Tools</button>
-    <button class="tab-button"        onclick="showTab(2)">LMs and Formats</button>
     <button class="tab-button"        onclick="showTab(3)">Frames and Execution Traces</button>
   </div>
 
@@ -28,8 +27,8 @@
         </div>
       </div>
       <div class="grid-container">
-{% for (tag,cog) in arch.cogs.items(): %}
-{%   if cog.__class__.__name__ == 'StructuredThoughtAutomaton' %}
+{% for (tag,cog) in arch.orchestrator.cogs.items(): %}
+{%   if cog.__class__.__name__ == 'Automaton' %}
         <div class="panel">
           <div class="panel-header collapsible">
             <h3>{{ tag }} ({{ cog.__class__.__name__ }})</h3>
@@ -44,7 +43,7 @@
           <div class="panel-content">
 {%     for (ptag,prompt) in cog.prompts.items(): %}
             <h4>Prompt: <tt>{{ptag}}</tt>{%if ptag == cog.entry %} (entry){% endif %}</h4>
-            <div id="svg_{{tag}}_{{ptag}}" class="svg_container">{{ gv2svg(prompt.toGraphViz())|safe }}</div>
+            <div id="svg_{{tag}}_{{ptag}}" class="svg_container">{{ gv2svg(prompt.toGraphViz_abstract())|safe }}</div>
 {%     endfor %}
           </div>
           <div class="panel-footer">
@@ -73,19 +72,14 @@
     </div>
     <div class="tab" id="tab_tools">
       <div class="grid-container">
-{% for (tag,cog) in arch.cogs.items(): %}
-{%   if cog.__class__.__name__ != 'StructuredThoughtAutomaton' %}
+{% for (tag,cog) in arch.orchestrator.cogs.items(): %}
+{%   if cog.__class__.__name__ != 'Automaton' %}
         <div class="panel">
           <h3>{{ tag }} ({{ cog.__class__.__name__ }})</h3>
         </div>
 {%   endif %}
 {% endfor %}
       </div>
-    </div>
-    <div class="tab" id="tab_formats">
-{% for (fmt,lm) in arch.orchestrator.LMs.items(): %}
-      <div><h3>{{ fmt }}</h3><pre>{{ lm.dict() }}</pre></div>
-{% endfor %}
     </div>
     <div class="tab" id="tab_frames">
 {% for frame in arch.orchestrator.frames: %}
@@ -99,7 +93,7 @@
   <script>
 window.onload = function () {
   register_collapsibles();
-{% for (tag,cog) in arch.cogs.items(): %}
+{% for (tag,cog) in arch.orchestrator.cogs.items(): %}
 {%   if cog.__class__.__name__ == 'StructuredThoughtAutomaton' %}
 {%     for (ptag,prompt) in cog.prompts.items(): %}
   register_svg("svg_{{tag}}_{{ptag}}");

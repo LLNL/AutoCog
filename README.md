@@ -74,7 +74,7 @@ Eventually, we want to use these traces for two purposes:
 
 Run the command below at the root of the repository to launch a server. It uses [quart](http://pgjones.gitlab.io/quart).
 ```
-python3 -m autocog --serve --host 0.0.0.0 --port 1001 --cogs mmlu.repeat_cot:library/mmlu-exams/repeat-cot.sta
+python3 -m autocog --serve --host 0.0.0.0 --port 5000 --cogs mmlu.repeat_cot:library/mmlu-exams/repeat-cot.sta
 ```
 
 ![Webapp -- Work in Progress](./share/webapp/webapp.png)]

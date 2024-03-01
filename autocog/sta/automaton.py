@@ -591,7 +591,7 @@ class Automaton(BaseModel):
     def toGraphViz_abstract(self):
         dotstr = ''
         for state in self.abstracts.values():
-            dotstr += f'{state.tag()} [label="{state.label()}"];\n'
+            dotstr += f'{self.prompt.name}_{state.tag()} [label="{state.label()}"];\n'
             if state.flow is not None:
                 constraint = 'true'
                 if state.field is None:
@@ -603,20 +603,20 @@ class Automaton(BaseModel):
                 else:
                     label = f'i < {state.field.range[1]}'
                     color = 'green'
-                dotstr += f'{state.tag()} -> {state.flow.tag()} [label="{label}", color={color}, constraint={constraint}];\n'
+                dotstr += f'{self.prompt.name}_{state.tag()} -> {self.prompt.name}_{state.flow.tag()} [label="{label}", color={color}, constraint={constraint}];\n'
             if state.exit is not None:
                 constraint = 'false'
                 if state.exit.depth() == state.depth():
                     constraint = 'true'
                 if state.field is None:
-                    assert False, f'{state.tag()} -> {state.exit.tag()}'
+                    assert False, f'{self.prompt.name}_{state.tag()} -> {self.prompt.name}_{state.exit.tag()}'
                 elif state.field.range is None:
                     label = ''
                     color = 'purple'
                 else:
                     label = f'i >= {state.field.range[0]}'
                     color = 'red'
-                dotstr += f'{state.tag()} -> {state.exit.tag()} [label="{label}", color={color}, constraint={constraint}];\n'
+                dotstr += f'{self.prompt.name}_{state.tag()} -> {self.prompt.name}_{state.exit.tag()} [label="{label}", color={color}, constraint={constraint}];\n'
         return dotstr
         
     def toGraphViz_concrete(self):
