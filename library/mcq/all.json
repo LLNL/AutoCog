@@ -1,0 +1,12 @@
+[
+    { "tag" : "mcq.repeat.base",  "filepath" : "@mcq/repeat.sta" },
+    { "tag" : "mcq.repeat.cot",   "filepath" : "@mcq/repeat-cot.sta" },
+    { "tag" : "mcq.repeat.hyp",   "filepath" : "@mcq/repeat-hyp.sta" },
+    { "tag" : "mcq.repeat.iter",  "filepath" : "@mcq/repeat-iter.sta" },
+    { "tag" : "mcq.repeat.annot", "filepath" : "@mcq/repeat-annot.sta" },
+    { "tag" : "mcq.select.base",  "filepath" : "@mcq/select.sta" },
+    { "tag" : "mcq.select.cot",   "filepath" : "@mcq/select-cot.sta" },
+    { "tag" : "mcq.select.hyp",   "filepath" : "@mcq/select-hyp.sta" },
+    { "tag" : "mcq.select.iter",  "filepath" : "@mcq/select-iter.sta" },
+    { "tag" : "mcq.select.annot", "filepath" : "@mcq/select-annot.sta" }
+]

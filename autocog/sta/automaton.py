@@ -124,8 +124,6 @@ class ConcreteState(BaseModel):
             idx = f'[{idx}]' if field.is_list() else ''
             prompt += idx
         prompt += ':'
-        if not field.is_record():
-            prompt += ' '
         return prompt
 
 class Automaton(BaseModel):
@@ -588,9 +586,9 @@ class Automaton(BaseModel):
                     value = int(value)
                 frame.write(abstracts, curr.path(), value)
 
-        pos = lines[-1].find("next: ")
+        pos = lines[-1].find("next:")
         assert pos >= 0, f"Should find \"next: \" in \"{lines[-1]}!\""
-        next = lines[-1][pos+len("next: "):]# .strip()
+        next = lines[-1][pos+len("next:"):].strip()
         assert next in self.prompt.flows, f"next=\"{next}\" from line=\"{lines[-1]}\" not found in the prompts flow"
         next = self.prompt.flows[next]
 

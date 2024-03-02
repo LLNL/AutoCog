@@ -162,10 +162,10 @@ class FiniteThoughtAutomaton(BaseModel):
             actions = {}
             if len(action.successors) == 1:
                 for (text,tokens_) in action.choices:
-                    actions.update({ text : action.successors[0] })
+                    actions.update({ text.strip() : action.successors[0] })
             else:
                 for ((text,tokens_), succ) in zip(action.choices, action.successors):
-                    actions.update({ text : succ })
+                    actions.update({ text.strip() : succ })
             assert len(actions) == len(action.choices), f"action={action} actions={actions}"
 
             tok_probas = tct.eval(lm, tokens)
@@ -176,8 +176,8 @@ class FiniteThoughtAutomaton(BaseModel):
                 (tokens_, probas) = zip(*tok_proba)
                 tokens_ = list(tokens_)
                 probas = list(probas)
-                text = lm.detokenize(tokens_, whole=False)
-                assert text in choices_as_texts, f"Not found \"{text}\" (from action={action.uid}) in {choices_as_texts}"
+                text = lm.detokenize(tokens_, whole=False).strip()
+                assert text in actions, f"Not found \"{text}\" (from action={action.uid}) in {','.join(actions.keys())}"
                 tree = FiniteTokenTree(tokens=tokens_, probas=probas)
                 act = self.actions[actions[text]]
                 tree.children += self.greedy_rec(lm=lm, tokens=tokens+tokens_, action=act)

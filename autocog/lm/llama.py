@@ -26,7 +26,7 @@ class Llama(LM):
             return [ self.model.token_nl() ]
 
         if not whole:
-            text = '\n' + text
+            text = '\n ' + text
 
         tokens = self.model.tokenize(bytes(text, 'utf-8'))
 
@@ -43,7 +43,7 @@ class Llama(LM):
         if not whole:
             tokens = [ self.model.token_nl() ] + tokens
         tokens = [ self.model.token_bos() ] + tokens + [ self.model.token_eos() ]
-        text = self.model.detokenize(tokens).decode("utf-8", errors="ignore")
+        text = self.model.detokenize(tokens).decode("utf-8", errors="replace")
         if text.endswith('<|im_end|>'):
             text = text[:-len('<|im_end|>')]
         return text

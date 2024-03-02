@@ -26,4 +26,4 @@ jobs:
     - name: Install
       run: pip install .
     - name: Check
-      run: ./tests/cli-mmlu.sh
+      run: cd tests/cli/mcq ; ./run.sh

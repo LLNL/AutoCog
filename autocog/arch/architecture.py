@@ -17,9 +17,22 @@ class CognitiveArchitecture(BaseModel):
     orchestrator: Orchestrator
     lm: LM
     syntax: Syntax
+    libdir: List[str]
 
-    def __init__(self, lm: LM, syntax: Syntax, Orch=Serial, **kwargs):
-        super().__init__(orchestrator=Orch(**kwargs), lm=lm, syntax=syntax)
+    def __init__(self, lm: LM, syntax: Syntax, libdir: List[str]=[], Orch=Serial, **kwargs):
+        super().__init__(orchestrator=Orch(**kwargs), lm=lm, syntax=syntax, libdir=libdir)
+
+        installed_libpath = os.path.realpath(os.path.dirname(__file__) + '/../library')
+        repository_libpath = os.path.realpath(os.path.dirname(__file__) + '/../../library')
+        system_libpath = os.path.realpath(os.path.dirname(__file__) + '/../../../../../share/autocog/library')
+        # system_libpath = '/usr/local/share/autocog/library'
+
+        if os.path.exists(installed_libpath):
+            self.libdir.append(installed_libpath)
+        elif os.path.exists(repository_libpath):
+            self.libdir.append(repository_libpath)
+        elif os.path.exists(system_libpath):
+            self.libdir.append(system_libpath)
 
     def reset(self):
         """Reset the state of stateful Cogs. Usefull when testing tools"""
@@ -37,6 +50,13 @@ class CognitiveArchitecture(BaseModel):
                 language = ext
             else:
                 assert language == ext
+            if filepath.startswith('@'):
+                for libdir in self.libdir:
+                    if os.path.exists(f"{libdir}/{filepath[1:]}"):
+                        filepath = f"{libdir}/{filepath[1:]}"
+                        break
+                if filepath.startswith('@'):
+                    raise Exception(f"Could not find {filepath[1:]} in any the library directories: {','.join(self.libdir)}")
             with open(filepath, 'r') as F:
                 program = F.read()
         else:

@@ -3,12 +3,58 @@
 
 [![PIP](https://github.com/LLNL/AutoCog/workflows/pip/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
 [![Frontend](https://github.com/LLNL/AutoCog/workflows/frontend/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
-[![CLI](https://github.com/LLNL/AutoCog/workflows/cli/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
+[![CLI](https://github.com/LLNL/AutoCog/actions/workflows/cli.yml/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions)
 
-Auotmaton & Cognition explores mechanism to build simple automaton that drive cognitive processes.
-To this end, we defined a programming model, Structured Thoughts, which compiles to a collection of automaton.
-Each automaton defines a prompt and guides its completion.
-Completed prompts are parsed and the etracted data flows to the next prompt.
+Auotmaton & Cognition explores mechanisms to build automaton that drive cognitive processes.
+To this end, we defined a programming model, Structured Thoughts, with a language that compiles to a set of automaton.
+
+## Structured Thoughts
+
+In the Structured Thoughts programming model, prompts are akin to the building blocks of traditional computer programs.
+Prompts are compiled to automaton that ensure that the resulting completion can be parsed to extract structured data.
+Branching between prompts is controlled by the language model.
+The dataflow is statically defined and executed when instantiating the automaton of each prompt.
+Calls (to other prompts or python tools) are executed during the dataflow phase.
+
+Below, we show a single prompt program which implement Chain-of-Thoughts (CoT) to answer a multiple choice question.
+In this examples, the language model is presented with the `topic`, the `question`, and four `choices`.
+It can then think using one to ten `thought` (up 20 tokens for each).
+Eventually, the model must indicate the index of the correct choice.
+
+```
+format thought {
+    is text<20>;
+    annotate f"a short text representing a single thought, it does not have to be a proper sentence.";
+}
+
+prompt main {
+    is {
+        topic is text<20>;
+        question is text<50>;
+        choices[4] is text<40>;
+        work[1:10] is thought;
+        answer is select(.choices);
+    }
+    channel {
+        to .topic    from ?topic;
+        to .question from ?question;
+        to .choices  from ?choices;
+    }
+    return {
+        from .answer;
+    }
+    annotate {
+        _ as "You are answering a multiple choice questionnaire.";
+        .topic           as "the general category from which the question was taken";
+        .question        as "the question that you have to answer";
+        .choices         as "the four possible choices to answer the question, only one is correct";
+        .work            as "show your work step-by-step";
+        .answer          as "you pick the index of the choice that best answer the question";
+    }
+}
+```
+
+We are developing the [MCQ](./library/mcq) library of program to illustrate thought patterns that are achievable using Structured Thoughts.
 
 ## Getting started
 
@@ -95,6 +141,10 @@ python3 -m autocog --gguf /data/models/llama-2-7b-chat.Q4_K_M.gguf --syntax Llam
                    --command '{ "__tag" : "mmlu.select_cot", "topic" : "arithmetic", "question" : "What is 3*4+9?", "choices" : [ "16", "21", "39", "42" ] }'
 ```
 
+Currently, the AutoCog application only saves the output of the commands in a JSON file.
+
+> TODO v0.5: saving the "pages"
+
 ### Web Application
 
 The goal is to provide a development environment.
@@ -111,18 +161,23 @@ Run the command below at the root of the repository to launch a server. It uses 
 python3 -m autocog --serve --host 0.0.0.0 --port 5000 --cogs mmlu.repeat_cot:library/mmlu-exams/repeat-cot.sta
 ```
 
-![Webapp -- Work in Progress](./share/webapp/webapp.png)]
+### Testing
 
-### Testing (TODO update for v0.4)
+Currently only pushes to selected branches trigger GitHub actions.
+The results for `master` are shown at the top of this README.
 
-Minimal testing with [`pipenv run tests/runall.sh`](./tests/runall.sh):
- - [Unit-tests](./tests/unittests)
- - Llama.cpp wrapper (must set $LLAMA_CPP_MODEL_PATH)
- - OpenAI wrapper (must set $OPENAI_API_KEY)
- 
-Currently only pushes to master trigger GitHub actions.
-It tests `pip install` and `STA dataflow` (only set of unit-tests so far).
-Looking for way to tests the LLM on GitHub (don't want to expose an API key or move the 4GB minimum of Llama 7B q4).
+We run three tests:
+ - `pip install`
+ - Structured Thoughts frontend (parsing some non-sensical but lexicographically correct sample of the language)
+ - AutoCog CLI to load the MMLU-Exams and run a very simple query 
+
+Currently, tests involving a model use the Random Language Model ([see rambling here](./tests/cli-mmlu.sh)).
+Looking for alternative to making the GitHub action download Llama 2 (7b, Chat, Q4_K_M) which I use for testing.
+
+|   | PIP | Frontend | CLI |
+|---|---|---|---|
+| `master` | [![PIP](https://github.com/LLNL/AutoCog/workflows/pip/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions) | [![Frontend](https://github.com/LLNL/AutoCog/workflows/frontend/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions) | [![CLI](https://github.com/LLNL/AutoCog/actions/workflows/cli.yml/badge.svg?branch=master)](https://github.com/LLNL/AutoCog/actions) |
+| `devel` | [![PIP](https://github.com/LLNL/AutoCog/workflows/pip/badge.svg?branch=devel)](https://github.com/LLNL/AutoCog/actions) | [![Frontend](https://github.com/LLNL/AutoCog/workflows/frontend/badge.svg?branch=devel)](https://github.com/LLNL/AutoCog/actions) | [![CLI](https://github.com/LLNL/AutoCog/actions/workflows/cli.yml/badge.svg?branch=devel)](https://github.com/LLNL/AutoCog/actions) |
 
 ## Contributing
 
@@ -131,7 +186,7 @@ Contributions are welcome!
 So far there is only one rule: **linear git history** (no merge commits).
 Only the master branch have stable commits, other branches might be rebased without notice.
 
-Version number will increase for each push to master and have a matching tag.
+Version number should increase for each push to master and have a matching tag.
 
 ## License
 

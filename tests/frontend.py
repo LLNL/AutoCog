@@ -1,7 +1,6 @@
 
 from autocog.sta.frontend import frontend
 
-# TODO read from frontend subdir
 programs = ["""
 ""","""
 define N=10;
