@@ -6,6 +6,7 @@ from ..sta.ir import Program, Return, Control
 from ..sta.automaton import Automaton as STA
 from ..sta.runtime import Frame
 
+from ..fta.automaton import FiniteThoughtAutomaton as FTA
 from ..fta.automaton import FiniteTokenTree as FTT
 
 class Page(BaseModel):
@@ -22,6 +23,7 @@ class Page(BaseModel):
 
 class AutomatonPage(Page):
     stacks:   Dict[str,List[Frame]]   = {}
+    ftas:     Dict[str,List[FTA]]     = {}
     ftts:     Dict[str,List[FTT]]     = {}
     branches: Dict[str,Dict[str,int]] = {}
 
@@ -63,6 +65,7 @@ class Automaton(Cog):
             __page = self.arch.orchestrator.page(self)
         assert isinstance(__page, AutomatonPage)
         assert len(__page.stacks) == 0
+        assert len(__page.ftas) == 0
         assert len(__page.ftts) == 0
         assert len(__page.branches) == 0
         ptag = __page.entry
@@ -72,10 +75,12 @@ class Automaton(Cog):
             if not ptag in __page.branches:
                 __page.branches.update({ ptag : {} })
                 __page.stacks.update({ ptag : [] })
+                __page.ftas.update({ ptag : [] })
                 __page.ftts.update({ ptag : [] })
 
             frame = await sta.assemble(self.arch, __page, inputs)
             fta = sta.instantiate(syntax=self.arch.syntax, frame=frame, branches=__page.branches[ptag], inputs=inputs)
+            __page.ftas[ptag].append(fta)
             fta.simplify()
             ftt = fta.greedy(lm=self.arch.lm)
             __page.ftts[ptag].append(ftt)
