@@ -175,10 +175,13 @@ class TypeRef(ASTNode):
 
 class EnumType(ASTNode):
     kind: str
+    arguments: List[Argument] = []
     source: Union[Path,List[Expression]]
 
     def gvtree(self):
         yield from super().gvtree()
+        for (i,arg) in enumerate(self.arguments):
+            yield ("argument",i,arg)
         if isinstance(self.source, Path):
             yield ("path",None,self.source)
         else:

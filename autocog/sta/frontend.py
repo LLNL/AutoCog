@@ -410,18 +410,42 @@ class Visitor(NodeVisitor):
         return visited_children[0]
 
     def visit_repeat_def(self, node, visited_children):
-        assert len(visited_children) == 5
-        return EnumType(kind='repeat', source=visited_children[3])
+        assert len(visited_children) == 7
+        arguments = visited_children[2]
+        if 'children' in arguments:
+            assert len(arguments['children']) == 1
+            arguments = arguments['children'][0]
+            assert arguments['kind'] == 'param_list'
+            arguments = arguments['children']
+        else:
+            arguments = []
+        return EnumType(kind='repeat', source=visited_children[5], arguments=arguments)
 
     def visit_select_def(self, node, visited_children):
-        assert len(visited_children) == 5
-        return EnumType(kind='select', source=visited_children[3])
+        assert len(visited_children) == 7
+        arguments = visited_children[2]
+        if 'children' in arguments:
+            assert len(arguments['children']) == 1
+            arguments = arguments['children'][0]
+            assert arguments['kind'] == 'param_list'
+            arguments = arguments['children']
+        else:
+            arguments = []
+        return EnumType(kind='select', source=visited_children[5], arguments=arguments)
 
     def visit_enum_def(self, node, visited_children):
-        assert len(visited_children) == 5
-        source = visited_children[3]
+        assert len(visited_children) == 7
+        arguments = visited_children[2]
+        if 'children' in arguments:
+            assert len(arguments['children']) == 1
+            arguments = arguments['children'][0]
+            assert arguments['kind'] == 'param_list'
+            arguments = arguments['children']
+        else:
+            arguments = []
+        source = visited_children[5]
         assert source['kind'] == 'string_expr_list'
-        return EnumType(kind='enum', source=source['children'])
+        return EnumType(kind='enum', source=source['children'], arguments=arguments)
     
     def visit_string_expr_list__(self, node, visited_children):
         if len(visited_children) == 1:

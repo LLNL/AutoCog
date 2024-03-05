@@ -83,9 +83,9 @@ array_slice      = LSB WS expression array_slice_cont WS RSB
 array_slice_cont = array_slice__?
 array_slice__    = WS COLON WS expression
 
-repeat_def       = REPEAT WS LPAR path_expr RPAR
-select_def       = SELECT WS LPAR path_expr RPAR
-enum_def         = ENUM   WS LPAR string_expr_list RPAR
+repeat_def       = REPEAT WS type_ref_param? WS LPAR path_expr RPAR
+select_def       = SELECT WS type_ref_param? WS LPAR path_expr RPAR
+enum_def         = ENUM   WS type_ref_param? WS LPAR string_expr_list RPAR
 
 type_ref         = identifier WS type_ref_param?
 type_ref_param   = LT WS param_list WS GT
