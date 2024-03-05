@@ -534,10 +534,7 @@ class Automaton(BaseModel):
             fta.create( uid='next.choice', cls=Text, text=next_choices[0])
         else:
             fta.create( uid='next.choice', cls=Choose, choices=next_choices)
-        fta.create( uid='next.endl', cls=Text, text='\n')
         fta.connect('next.field', 'next.choice')
-        fta.connect('next.choice','next.endl')
-
         return fta
 
     def parse(self, lm:LM, ftt:FTT, syntax: Syntax, stacks: Any):
@@ -587,7 +584,7 @@ class Automaton(BaseModel):
                 frame.write(abstracts, curr.path(), value)
 
         pos = lines[-1].find("next:")
-        assert pos >= 0, f"Should find \"next: \" in \"{lines[-1]}!\""
+        assert pos >= 0, f"Should find \"next: \" in \"{lines[-1]}\"!"
         next = lines[-1][pos+len("next:"):].strip()
         assert next in self.prompt.flows, f"next=\"{next}\" from line=\"{lines[-1]}\" not found in the prompts flow"
         next = self.prompt.flows[next]

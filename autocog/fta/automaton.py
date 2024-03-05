@@ -7,6 +7,7 @@ from .vocab import Token, Vocab
 from .actions import Action, Choose, Text, Complete
 from ..lm.lm import LM
 
+import copy
 import json
 import numpy
 
@@ -17,7 +18,7 @@ def depthfirst(tree):
         children = children.values()
     for c in children:
         c.parent = tree
-        yield from c.depthfirst()
+        yield from depthfirst(c)
 
 class TokenChoiceTree:
     def __init__(self, token=None, depth=0):
@@ -96,19 +97,21 @@ class FiniteTokenTree(BaseModel):
     parent: Optional["FiniteTokenTree"] = None
 
     def collect(self, tokens: List[Token] = [], probas:List[float] = []):
+        tokens = tokens + self.tokens
+        if self.probas is not None:
+            probas = probas + self.probas
+
         if len(self.children) == 0:
             return [ (tokens, probas) ]
+
         results = []
         for child in self.children:
-            results += child.collect(
-                tokens=tokens+self.tokens,
-                probas=probas if self.probas is None else probas + self.probas
-            )
+            results += child.collect(tokens=tokens, probas=copy.deepcopy(probas))
         return results
 
     def results(self, lm, normalized=True):
         if normalized:
-            scoring = lambda probas: numpy.power(numpy.prod(probas), 1./len(probas))
+            scoring = lambda probas: numpy.prod(numpy.power(probas, 1./len(probas)))
         else:
             scoring = lambda probas: numpy.prod(probas)
 
@@ -142,8 +145,31 @@ class FiniteThoughtAutomaton(BaseModel):
         assert tgt in self.actions
         self.actions[src].successors.append(tgt)
 
+    def __collect_predeccessors(self, predeccessors: Dict[str,List[str]], cuid:str, pred:str):
+        if not cuid in predeccessors:
+            predeccessors.update({ cuid : [] })
+        if not pred in predeccessors[cuid]:
+            predeccessors[cuid].append(pred)
+
+        for succ in self.actions[cuid].successors:
+            self.__collect_predeccessors(predeccessors=predeccessors, cuid=succ, pred=cuid)
+
     def simplify(self):
-        pass # TODO concatenate chains of text-actions: need predecessors map
+        predeccessors = {}
+        for succ in self.actions['root'].successors:
+            self.__collect_predeccessors(predeccessors=predeccessors, cuid=succ, pred='root')
+
+        # Traverse in reverse order so we always move toward the root
+        for (cuid, preds) in list(predeccessors.items())[::-1]:
+            if len(preds) != 1:
+                continue
+            curr = self.actions[cuid]
+            pred = self.actions[preds[0]]
+            if isinstance(pred,Text) and isinstance(curr, Text):
+                pred.text += curr.text
+                pred.successors.clear()
+                pred.successors.extend(curr.successors)
+                del self.actions[cuid]
 
     def greedy_rec(self, lm:LM, tokens:List[Token], action:Action):
         if isinstance(action, Text):
@@ -166,7 +192,7 @@ class FiniteThoughtAutomaton(BaseModel):
             else:
                 for ((text,tokens_), succ) in zip(action.choices, action.successors):
                     actions.update({ text.strip() : succ })
-            assert len(actions) == len(action.choices), f"action={action} actions={actions}"
+            assert len(actions) == 0 or len(actions) == len(action.choices), f"action={action} actions={actions}"
 
             tok_probas = tct.eval(lm, tokens)
             choices_as_texts = list(list(zip(*action.choices))[0])
@@ -176,12 +202,13 @@ class FiniteThoughtAutomaton(BaseModel):
                 (tokens_, probas) = zip(*tok_proba)
                 tokens_ = list(tokens_)
                 probas = list(probas)
-                text = lm.detokenize(tokens_, whole=False).strip()
-                assert text in actions, f"Not found \"{text}\" (from action={action.uid}) in {','.join(actions.keys())}"
                 tree = FiniteTokenTree(tokens=tokens_, probas=probas)
-                act = self.actions[actions[text]]
-                tree.children += self.greedy_rec(lm=lm, tokens=tokens+tokens_, action=act)
                 trees.append(tree)
+                if len(actions) > 0:
+                    text = lm.detokenize(tokens_, whole=False).strip()
+                    assert text in actions, f"Not found \"{text}\" (from action={action.uid}) in {','.join(actions.keys())}"
+                    act = self.actions[actions[text]]
+                    tree.children += self.greedy_rec(lm=lm, tokens=tokens+tokens_, action=act)
             return trees
         elif isinstance(action, Complete):
             trees = []
