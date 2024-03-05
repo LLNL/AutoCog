@@ -14,12 +14,12 @@ setup(
   url="https://github.com/LLNL/autocog/",
   long_description=read("README.md"),
   long_description_content_type="text/markdown",
-  packages=find_packages(exclude=["library", "share", "tests"]),
+  packages=find_packages(exclude=["share", "tests"]),
   install_requires=read_requirements("requirements.txt"),
   data_files=[
-      ( 'share/autocog/library/mcq',        glob.glob("library/mcq/*") ),
-      ( 'share/autocog/library/dfl',        glob.glob("library/dfl/*") ),
-      ( 'share/autocog/library/elementary', glob.glob("library/elementary/*") ),
-      ( 'share/autocog/library/tools',      glob.glob("library/tools/*") )
+      ( 'share/autocog/library/mcq',        glob.glob("share/library/mcq/*") ),
+      ( 'share/autocog/library/dfl',        glob.glob("share/library/dfl/*") ),
+      ( 'share/autocog/library/elementary', glob.glob("share/library/elementary/*") ),
+      ( 'share/autocog/library/tools',      glob.glob("share/library/tools/*") )
   ],
 )

@@ -23,7 +23,7 @@ class CognitiveArchitecture(BaseModel):
         super().__init__(orchestrator=Orch(**kwargs), lm=lm, syntax=syntax, libdir=libdir)
 
         installed_libpath = os.path.realpath(os.path.dirname(__file__) + '/../library')
-        repository_libpath = os.path.realpath(os.path.dirname(__file__) + '/../../library')
+        repository_libpath = os.path.realpath(os.path.dirname(__file__) + '/../../share/library')
         system_libpath = os.path.realpath(os.path.dirname(__file__) + '/../../../../../share/autocog/library')
         # system_libpath = '/usr/local/share/autocog/library'
 

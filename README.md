@@ -16,7 +16,7 @@ We broke down the documentation into a few files:
  - [tutorial](./docs/tutorial.md)
  - [roadmap](./docs/roadmap.md)
 
-The libraries have [their own documentation](./library/README.md).
+The libraries have [their own documentation](./share/library/README.md).
 
 ## Contributing
 
