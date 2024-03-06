@@ -138,6 +138,7 @@ class Completion(Format):
 
 class Enum(Format):
     values: List[str]
+    width: int = 0
 
     def str(self):
         str = '","'.join(self.values)
@@ -146,6 +147,7 @@ class Enum(Format):
 class Choice(Format):
     path: Path
     mode: str
+    width: int = 0
 
     def str(self):
         return f'{self.mode}({self.path.str()})'

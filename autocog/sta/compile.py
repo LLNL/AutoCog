@@ -136,9 +136,24 @@ def resolve_type(type: Union[AstRecord,AstTypeRef,AstEnumType], path:List[str], 
         return TmpRecord(name=pathname, fields=type.fields, syntax=type, values=rec_values)
 
     elif isinstance(type, AstEnumType):
+        arguments = [ 'width' ]
+        casts = { 'width' : int }
+        args = {}
+        kw = False
+        for (a,arg) in enumerate(type.arguments):
+            if arg.name is None:
+                if kw:
+                    raise Exception(f"Found non-keyword argument after at least one keyword argument.")
+                args.update({ arguments[a] : arg.value.eval(values=values) })
+            else:
+                kw = True
+                args.update({ arg.name : arg.value.eval(values=values) })
+
+        args = { k : casts[k](arg) if k in casts else arg for (k,arg) in args.items() }
+
         if type.kind == 'enum':
             assert isinstance(type.source, list)
-            fmt = IrEnum(name=pathname, values=[ s.eval(values=values) for s in type.source ])
+            fmt = IrEnum(name=pathname, values=[ s.eval(values=values) for s in type.source ], **args)
             program.formats.update({ pathname : fmt })
             return fmt
 
@@ -148,7 +163,7 @@ def resolve_type(type: Union[AstRecord,AstTypeRef,AstEnumType], path:List[str], 
                 prompt=type.source.prompt,
                 steps=[ ( step.name, range_from_slice(step.slice, values) ) for step in type.source.steps ]
             )
-            fmt = IrChoice(name=pathname, path=path, mode=type.kind)
+            fmt = IrChoice(name=pathname, path=path, mode=type.kind, **args)
             program.formats.update({ pathname : fmt })
             return fmt
 
