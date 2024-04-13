@@ -395,7 +395,8 @@ class Automaton(BaseModel):
                     if fmt.mode == 'repeat':
                         pass
                     elif fmt.mode == 'select':
-                        choices = range(len(choices))
+                        offset = 0 if syntax.prompt_zero_index else 1
+                        choices = range(offset, offset + len(choices))
                     else:
                         raise Exception(f"Unexpected choice mode: {fmt.mode}")
                     choices = list(map(str,choices))

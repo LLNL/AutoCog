@@ -5,132 +5,15 @@ from pydantic import BaseModel
 
 from .vocab import Token, Vocab
 from .actions import Action, Choose, Text, Complete
+from .ftt import FTT_Proba, FiniteTokenTree
+from .tct import TokenChoiceTree
+from .beam import beam_search
+
 from ..lm.lm import LM
 
 import copy
 import json
 import numpy
-
-def depthfirst(tree):
-    yield tree
-    children = tree.children
-    if isinstance(children, dict):
-        children = children.values()
-    for c in children:
-        c.parent = tree
-        yield from depthfirst(c)
-
-class TokenChoiceTree:
-    def __init__(self, token=None, depth=0):
-        self.token = token
-        self.depth = depth
-        self.children = {}
-        self.proba = None
-
-    def add_tokens(self, sequence:List[int]):
-        tok = sequence[0]
-        if not tok in self.children:
-            self.children.update({ tok : TokenChoiceTree(token=tok, depth=self.depth+1) })
-        tree = self.children[tok]
-        return tree if len(sequence) == 1 else tree.add_tokens(sequence[1:])
-
-    def eval(self, lm:LM, prompt:List[Token]):
-        if len(self.children) == 0:
-            return [ [] ]
-        else:
-            probs = numpy.exp(lm.greedy(prompt))
-
-            results = []
-            for tree in self.children.values():
-                head = [ ( tree.token, probs[tree.token] ) ]
-                tails = tree.eval(lm, prompt+[tree.token])
-                results += [ head + tail for tail in tails ]
-            return results
-
-    def toGraphViz(self, lm):
-        assert self.token is None, "Should be called on the root"
-        cnt = 0
-        dotstr = ""
-        for t in depthfirst(self):
-            t.id = cnt
-            cnt += 1
-            if t.parent is not None:
-                label = f"{t.decode(lm)}"
-            else:
-                label = "ROOT"
-            dotstr += f'n_{t.id} [label="{label}"];'
-            if t.parent is not None:
-                dotstr += f'n_{t.parent.id} -> n_{t.id};'
-        return dotstr
-
-def beam_search(lm: LM, tokens: List[Token], vocab:Vocab, stop:Union[str,List[Token]], length: int, beams: int, ahead: int):
-    assert beams == 1
-    assert ahead == 1
-    assert vocab.bounds is None
-
-    if isinstance(stop,str):
-        stop = lm.tokenize(stop)
-    
-    new_tokens = []
-    probas = []
-    while len(new_tokens) < length:
-        prob = numpy.exp(lm.greedy(tokens+new_tokens))
-
-        new_token = numpy.argmax(prob)
-
-        new_tokens.append(new_token)
-        probas.append(prob[new_token])
-
-        if new_tokens[-len(stop):] == stop:
-            new_tokens = new_tokens[:-len(stop)]
-            probas = probas[:-len(stop)]
-            break
-
-    return [ ( new_tokens, probas ) ]
-
-class FiniteTokenTree(BaseModel):
-    tokens:   List[Token] = []
-    probas:   Optional[List[float]] = None
-    children: List["FiniteTokenTree"] = []
-
-    id: Optional[int] = None
-    parent: Optional["FiniteTokenTree"] = None
-
-    def collect(self, tokens: List[Token] = [], probas:List[float] = []):
-        tokens = tokens + self.tokens
-        if self.probas is not None:
-            probas = probas + self.probas
-
-        if len(self.children) == 0:
-            return [ (tokens, probas) ]
-
-        results = []
-        for child in self.children:
-            results += child.collect(tokens=tokens, probas=copy.deepcopy(probas))
-        return results
-
-    def results(self, lm, normalized=True):
-        if normalized:
-            scoring = lambda probas: numpy.prod(numpy.power(probas, 1./len(probas)))
-        else:
-            scoring = lambda probas: numpy.prod(probas)
-
-        results = self.collect()
-        results = [ (lm.detokenize(tokens), scoring(probas)) for (tokens,probas) in results ]
-        return list(sorted(results, key=lambda x: x[-1] ))
-
-    def toGraphViz(self, lm):
-        cnt = 0
-        dotstr = ""
-        for tree in depthfirst(self):
-            tree.id = cnt
-            cnt += 1
-            label = json.dumps(lm.detokenize(tree.tokens, whole=False).replace(r'\n',r'\l'))[1:-1]
-            # dotstr += f'n_{tree.id}' + ' [shape=record, label="{{' + label + '|' + str(tree.probas) + '}}"];\n'
-            dotstr += f'n_{tree.id} [label="{label}\\n{numpy.prod(tree.probas)}"];\n'
-            if tree.parent is not None:
-                dotstr += f'n_{tree.parent.id} -> n_{tree.id};\n'
-        return dotstr
 
 class FiniteThoughtAutomaton(BaseModel):
     actions: Dict[str,Action] = {}
@@ -171,12 +54,12 @@ class FiniteThoughtAutomaton(BaseModel):
                 pred.successors.extend(curr.successors)
                 del self.actions[cuid]
 
-    def greedy_rec(self, lm:LM, tokens:List[Token], action:Action):
+    def greedy_rec(self, ptree:FiniteTokenTree, lm:LM, tokens:List[Token], action:Action):
         if isinstance(action, Text):
-            tree = FiniteTokenTree(tokens=action.tokens)
+            tree = FiniteTokenTree(parent=ptree, tokens=action.tokens)
             if len(action.successors) == 1:
                 act = self.actions[action.successors[0]]
-                tree.children += self.greedy_rec(lm=lm, tokens=tokens+action.tokens, action=act)
+                tree.append(self.greedy_rec(ptree=tree, lm=lm, tokens=tokens+action.tokens, action=act))
             else:
                 assert len(action.successors) == 0
             return [ tree ]
@@ -202,21 +85,21 @@ class FiniteThoughtAutomaton(BaseModel):
                 (tokens_, probas) = zip(*tok_proba)
                 tokens_ = list(tokens_)
                 probas = list(probas)
-                tree = FiniteTokenTree(tokens=tokens_, probas=probas)
+                tree = FiniteTokenTree(parent=ptree, tokens=tokens_, probas=probas)
                 trees.append(tree)
                 if len(actions) > 0:
                     text = lm.detokenize(tokens_, whole=False).strip()
                     assert text in actions, f"Not found \"{text}\" (from action={action.uid}) in {','.join(actions.keys())}"
                     act = self.actions[actions[text]]
-                    tree.children += self.greedy_rec(lm=lm, tokens=tokens+tokens_, action=act)
+                    tree.append(self.greedy_rec(ptree=tree, lm=lm, tokens=tokens+tokens_, action=act))
             return trees
         elif isinstance(action, Complete):
             trees = []
             for (new_tokens, probas) in beam_search(lm, tokens, vocab=action.vocab, stop=action.stop, length=action.length, beams=action.beams, ahead=action.ahead):
-                tree = FiniteTokenTree(tokens=new_tokens, probas=probas)
+                tree = FiniteTokenTree(parent=ptree, tokens=new_tokens, probas=probas)
                 if len(action.successors) == 1:
                     act = self.actions[action.successors[0]]
-                    tree.children += self.greedy_rec(lm=lm, tokens=tokens+new_tokens, action=act)
+                    tree.append(self.greedy_rec(ptree=tree, lm=lm, tokens=tokens+new_tokens, action=act))
                 else:
                     assert len(action.successors) == 0
                 trees.append(tree)
@@ -227,12 +110,9 @@ class FiniteThoughtAutomaton(BaseModel):
     def greedy(self, lm: LM):
         for action in self.actions.values():
             action.prepare(lm)
-        branches = self.greedy_rec(lm=lm, tokens=[], action=self.actions['root'])
-        assert len(branches) > 0
-        if len(branches) == 1:
-            return branches[0]
-        else:
-            return FiniteTokenTree(children=branches)
+        root = FiniteTokenTree.root()
+        root.append(self.greedy_rec(ptree=root, lm=lm, tokens=[], action=self.actions['root']))
+        return root
 
     def toGraphViz(self, label_with_uid:bool=False):
         dotstr = ""
