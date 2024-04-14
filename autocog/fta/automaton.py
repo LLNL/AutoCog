@@ -55,14 +55,18 @@ class FiniteThoughtAutomaton(BaseModel):
                 del self.actions[cuid]
 
     def greedy_rec(self, ptree:FiniteTokenTree, lm:LM, tokens:List[Token], action:Action):
+        todos = []
         if isinstance(action, Text):
             tree = FiniteTokenTree(parent=ptree, tokens=action.tokens)
+            ptree.append(tree)
+
             if len(action.successors) == 1:
                 act = self.actions[action.successors[0]]
-                tree.append(self.greedy_rec(ptree=tree, lm=lm, tokens=tokens+action.tokens, action=act))
+                todos.append( (tree, act, tokens+action.tokens) )
             else:
                 assert len(action.successors) == 0
-            return [ tree ]
+                tree.finalize()
+
         elif isinstance(action, Choose):
             tct = TokenChoiceTree()
             for (text,tokens_) in action.choices:
@@ -80,38 +84,60 @@ class FiniteThoughtAutomaton(BaseModel):
             tok_probas = tct.eval(lm, tokens)
             choices_as_texts = list(list(zip(*action.choices))[0])
 
-            trees = []
             for tok_proba in tok_probas:
                 (tokens_, probas) = zip(*tok_proba)
                 tokens_ = list(tokens_)
                 probas = list(probas)
                 tree = FiniteTokenTree(parent=ptree, tokens=tokens_, probas=probas)
-                trees.append(tree)
+                ptree.append(tree)
+
                 if len(actions) > 0:
                     text = lm.detokenize(tokens_, whole=False).strip()
                     assert text in actions, f"Not found \"{text}\" (from action={action.uid}) in {','.join(actions.keys())}"
                     act = self.actions[actions[text]]
-                    tree.append(self.greedy_rec(ptree=tree, lm=lm, tokens=tokens+tokens_, action=act))
-            return trees
+                    todos.append( (tree, act, tokens+tokens_) )
+                else:
+                    tree.finalize()
+
         elif isinstance(action, Complete):
-            trees = []
             for (new_tokens, probas) in beam_search(lm, tokens, vocab=action.vocab, stop=action.stop, length=action.length, beams=action.beams, ahead=action.ahead):
                 tree = FiniteTokenTree(parent=ptree, tokens=new_tokens, probas=probas)
+                ptree.append(tree)
+
                 if len(action.successors) == 1:
                     act = self.actions[action.successors[0]]
-                    tree.append(self.greedy_rec(ptree=tree, lm=lm, tokens=tokens+new_tokens, action=act))
+                    todos.append( (tree, act, tokens+new_tokens) )
                 else:
                     assert len(action.successors) == 0
-                trees.append(tree)
-            return trees
+                    tree.finalize()
+
         else:
             raise NotImplementedError(f"Case of {action.__class__.__name__} action")
+
+        ptree.finalize()
+        if len(todos) > 1:
+            todo_scoring = lambda x: x[0].probas.tokwise_proba_norm
+            selection_width = action.width
+            if action.threshold is not None:
+                max_prob = max(map(todo_scoring, todos))
+                if max_prob >= action.threshold:
+                    todos = list(filter(lambda x: todo_scoring(x) >= action.threshold, todos))
+                    assert len(todos) > 0
+                else:
+                    selection_width = 1
+            if selection_width is not None and len(todos) > selection_width:
+                todos = sorted(todos, key=todo_scoring)
+                todos = list(todos)[:selection_width]
+
+        for (tree,act,toks) in todos:
+            self.greedy_rec(ptree=tree, lm=lm, tokens=toks, action=act)
 
     def greedy(self, lm: LM):
         for action in self.actions.values():
             action.prepare(lm)
         root = FiniteTokenTree.root()
-        root.append(self.greedy_rec(ptree=root, lm=lm, tokens=[], action=self.actions['root']))
+        self.greedy_rec(ptree=root, lm=lm, tokens=[], action=self.actions['root'])
+        assert root.finalized
         return root
 
     def toGraphViz(self, label_with_uid:bool=False):

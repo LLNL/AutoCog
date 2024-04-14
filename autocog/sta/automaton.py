@@ -387,7 +387,7 @@ class Automaton(BaseModel):
                 elif isinstance(fmt, IrCompletion):
                     fta.create(uid=uid, cls=Complete, length=fmt.length, stop='\n')
                 elif isinstance(fmt, IrEnum):
-                    fta.create(uid=uid, cls=Choose, choices=fmt.values)
+                    fta.create(uid=uid, cls=Choose, choices=fmt.values, width=fmt.width)
                 elif isinstance(fmt, IrChoice):
                     assert not fmt.path.is_input
                     assert fmt.path.prompt is None
@@ -400,7 +400,7 @@ class Automaton(BaseModel):
                     else:
                         raise Exception(f"Unexpected choice mode: {fmt.mode}")
                     choices = list(map(str,choices))
-                    fta.create(uid=uid, cls=Choose, choices=choices)
+                    fta.create(uid=uid, cls=Choose, choices=choices, width=fmt.width)
                 else:
                     raise Exception(f'Unknown format: {successor.abstract.field.format}')
                 fta.connect(branch, uid)
@@ -542,8 +542,12 @@ class Automaton(BaseModel):
         result = None
 
         results = ftt.results(lm=lm, normalized=True)
+        # for r,res in enumerate(results):
+        #     lines = res[0].split('\nstart:\n')[2].split('\n')
+        #     print(f"[{r}]\n>  " + "\n>  ".join(lines) + f"\n[/{r}]")
         text = results[-1][0]
         lines = text.split('\nstart:\n')[2].split('\n')
+        # print("[Lines]\n>  " + "\n>  ".join(lines) + "\n[/Lines]")
 
         abstracts = { st.label() : ( st, {} ) for st in self.abstracts.values() }
         
@@ -554,7 +558,7 @@ class Automaton(BaseModel):
         data = []
         while idx < len(lines) - 1:
             line = lines[idx]
-            # print(f"{idx}: {line}")
+            # print(f"  @{idx}: {line}")
             value = None
             for succ in curr.successors:
                 pos = line.find(prompts[succ])

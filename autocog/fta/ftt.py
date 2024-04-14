@@ -80,7 +80,7 @@ class FTT_Proba(BaseModel):
         return recstr
 
     @staticmethod
-    def scoring(normalized, tokwise, proba):
+    def scoring(normalized=True, tokwise=True, proba=False):
         if proba:
             if normalized:
                 if tokwise:
@@ -134,6 +134,7 @@ class FiniteTokenTree(BaseModel):
     parent: Optional["FiniteTokenTree"] = None
 
     id: Optional[int] = None
+    finalized: bool = False
 
     def __init__(self, tokens:List[Token], probas:Optional[List[float]]=None, parent: Optional["FiniteTokenTree"] = None):
         if len(tokens) > 0:
@@ -153,38 +154,42 @@ class FiniteTokenTree(BaseModel):
     def root():
         return FiniteTokenTree(tokens=[])
 
-    def append(self, children):
-        self.children.extend(children)
+    def append(self, child):
+        assert not self.finalized
+        assert isinstance(child, FiniteTokenTree)
+        self.children.append(child)
+
+    def finalize(self):
         sum_local_prod = 0.
         sum_local_prod_norm = 0.
         sum_tokwise_prod = 0.
         sum_tokwise_prod_norm = 0.
-        for child in children:
+        for child in self.children:
             assert child.parent is self
             sum_local_prod        += child.probas.local_prod
             sum_local_prod_norm   += child.probas.local_prod_norm
             sum_tokwise_prod      += child.probas.tokwise_prod
             sum_tokwise_prod_norm += child.probas.tokwise_prod_norm
-        for child in children:
+        for child in self.children:
             child.probas.local_proba        = child.probas.local_prod        / sum_local_prod
             child.probas.local_proba_norm   = child.probas.local_prod_norm   / sum_local_prod_norm
-            child.probas.tokwise_proba      = child.probas.tokwise_prod      / sum_tokwise_prod
-            child.probas.tokwise_proba_norm = child.probas.tokwise_prod_norm / sum_tokwise_prod_norm
+            child.probas.tokwise_proba      = (child.probas.tokwise_prod      / sum_tokwise_prod     ) if sum_tokwise_prod > 0      else None
+            child.probas.tokwise_proba_norm = (child.probas.tokwise_prod_norm / sum_tokwise_prod_norm) if sum_tokwise_prod_norm > 0 else None
         # TODO treewise_norm_prod
-    
-    def collect(self, tokens: List[Token] = [], probas:List[FTT_Proba]=[]):
+        self.finalized = True
+
+    def collect(self, tokens: List[Token] = []):
         tokens = tokens + self.tokens
-        if len(self.children) == 0:
-            # return [ (tokens, probas) ]
+        if len(self.children) == 0 and self.finalized:
             return [ (tokens, self.probas) ]
 
         results = []
         for child in self.children:
-            results += child.collect(tokens=tokens, probas=probas)
+            results += child.collect(tokens=tokens)
         return results
 
-    def results(self, lm, normalized=True, tokwise=True, proba=False):
-        scoring = FTT_Proba.scoring(normalized=normalized, tokwise=tokwise, proba=proba)
+    def results(self, lm, **kwargs):
+        scoring = FTT_Proba.scoring(**kwargs)
 
         results = self.collect()
         results = [ (lm.detokenize(tokens), scoring(probas)) for (tokens,probas) in results ]
@@ -202,10 +207,17 @@ class FiniteTokenTree(BaseModel):
             else:
                 if len(label) > 0 and label[0] == '\n':
                     label = label[1:]
-                label = label.replace('<',r'\<').replace('>',r'\>').replace('|',r'\|').replace('{',r'\{').replace('}',r'\}').replace('\n',r'\l')
+                label = label.replace('<',r'\<').replace('>',r'\>')
+                label = label.replace('{',r'\{').replace('}',r'\}')
+                label = label.replace('[',r'\[').replace(']',r'\]')
+                label = label.replace('"',r'\"')
+                label = label.replace('|',r'\|')
+                label = label.replace(' ',r'\ ')
+                label = label.replace('\t',r'\t')
+                label = label.replace('\n',r'\l')
                 # label = json.dumps(label.replace(r'\n',r'\l'))[1:-1]
                 # label = 'text'
-                dotstr += f'n_{tree.id}' + '[shape=record, label="{' + label + '\l' + ( "" if tree.probas is None else tree.probas.toGraphVizRecord() ) + '}"];\n'
+                dotstr += f'n_{tree.id}' + '[shape=record, label="{' + label + '\l|finalized=' + str(tree.finalized) + '\l' + ( "" if tree.probas is None else tree.probas.toGraphVizRecord() ) + '}"];\n'
             if tree.parent is not None:
                 dotstr += f'n_{tree.parent.id} -> n_{tree.id};\n'
         return dotstr

@@ -11,6 +11,8 @@ from .vocab import Vocab, Token
 class Action(BaseModel):
     uid: str
     successors: List[str] = []
+    width: Optional[int] = None
+    threshold: Optional[float] = None
 
     def __init__(self, uid:Optional[str]=None, **kwargs):
         if uid is None:
@@ -61,8 +63,8 @@ class Text(Action):
 class Choose(Action):
     choices: List[Tuple[str,List[Token]]]
 
-    def __init__(self, uid:str, choices:List[str], successors: List[str]=[]):
-        super().__init__(uid=uid, successors=successors, choices=[ ( c, [] ) for c in choices ])
+    def __init__(self, uid:str, choices:List[str], successors: List[str]=[], width:Optional[int]=None):
+        super().__init__(uid=uid, successors=successors, choices=[ ( c, [] ) for c in choices ], width=None if width == 0 else width)
 
     def prepare(self, lm):
         for choice in self.choices:
